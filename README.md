@@ -37,6 +37,7 @@ nenhum. Ver `docs/metodologia.md`.
 ## Estrutura
 ```
 R/00_pull_kalshi.R       coleta da API -> data/raw/ (rode UMA vez; congela o banco)
+R/fun_distribuicao.R     nucleo matematico (base R puro, testavel isolado)
 R/01_build_series.R      painel bruto -> data/processed/serie_diaria.csv
 R/02..08_*.R             Questoes 1 a 7, na ordem de execucao
 run_all.R                reproduz 01..08 sobre o banco congelado
@@ -45,6 +46,7 @@ data/processed/          serie derivada usada na analise
 output/figures, tables/  graficos e tabelas do relatorio
 report/relatorio.qmd     relatorio em PDF (graficos/tabelas integrados)
 docs/metodologia.md      cada decisao rastreada ate o codigo do paper
+tests/                   validacao do pipeline contra resposta conhecida
 ```
 
 ## Coleta (rodar uma unica vez)
@@ -59,6 +61,47 @@ dos desfechos — esses rotulos sao o que o `01_build_series.R` precisa para mon
 
 Nao e preciso credencial nenhuma. Se voce tiver uma chave de API da Kalshi, ela **nao**
 entra neste repo (ver `.gitignore`): serve para ordens/carteira, nao para dados.
+
+## Validacao do pipeline
+O nucleo matematico (`R/fun_distribuicao.R`) e **base R puro** e e testado
+contra uma distribuicao de resposta conhecida — sem depender da API:
+
+```bash
+Rscript tests/test_distribuicao.R      # nenhum pacote necessario
+```
+
+O teste constroi uma distribuicao cuja media e conhecida, gera dela os precos
+que a Kalshi publicaria (a funcao de sobrevivencia, em cents) e verifica se o
+pipeline recupera a media original. Resultado (R 4.3.3):
+
+| Verificacao | Resultado |
+|---|---|
+| Recuperacao da media (4 cenarios) | erro maximo **1,42 bps** |
+| Ajuste de meio-balde | vale exatamente **12,50 bps** |
+| Metodo ingenuo (sem diferenciar) | erro de ate **44,1 bps**, e **troca de sinal** |
+| Nao-arbitragem (middle-out) | sobrevivencia volta a ser nao-crescente |
+| Caminho diario com ruido (180 dias) | REQM **0,54 bps**, correlacao **0,992** |
+
+O erro do metodo ingenuo nao e um vies constante: varia com o formato da
+distribuicao e com o tamanho da escada de strikes, e chega a inverter de sinal.
+Nao da para corrigir a posteriori — tem de diferenciar a sobrevivencia.
+
+### Ponta a ponta, sem a API
+```bash
+Rscript tests/gera_painel_sintetico.R                                  # fixture
+KALSHI_PANEL=tests/fixtures/painel_sintetico.csv Rscript R/01_build_series.R
+```
+O `01` aceita `KALSHI_PANEL`, `KALSHI_SERIE` e `KALSHI_MODO` por variavel de
+ambiente, so para permitir esse teste; os defaults apontam para o snapshot real.
+
+**`tests/fixtures/` nao e dado real.** O snapshot entregue tem de vir da API.
+
+### Por que o default e `contrato_unico`
+Medido sobre o painel sintetico (`Rscript tests/demo_roll.R`): na serie
+encadeada, o salto medio nos dias de roll e **22,96 bps** contra um
+desvio-padrao de **1,48 bps** nos dias normais — **15,6x**. Esse salto nao e
+noticia economica, e troca de alvo; entraria na Questao 2 como falsa quebra
+estrutural. O contrato unico entrega 180 obs de um alvo so.
 
 ## Reprodutibilidade
 O criterio do professor e objetivo: rodar o codigo sobre o banco entregue tem de devolver
