@@ -1,0 +1,33 @@
+---
+title: "Modelagem Box-Jenkins de uma serie de mercado de previsao (Kalshi/Fed)"
+author: "Felipe Carvalho — PPGEco/UFES, Econometria II"
+date: today
+lang: pt
+format:
+  pdf:
+    number-sections: true
+    fig-pos: "H"
+---
+
+# Preparacao e inspecao preliminar {#sec-q1}
+<!-- Questao 1 -->
+
+# Ordem de integracao {#sec-q2}
+<!-- Questao 2 -->
+
+# Identificacao {#sec-q3}
+<!-- Questao 3 -->
+
+# Estimacao e selecao {#sec-q4}
+<!-- Questao 4 -->
+
+# Diagnostico {#sec-q5}
+<!-- Questao 5 -->
+
+# Sobrediferenciacao {#sec-q6}
+<!-- Questao 6 -->
+
+# Previsao fora da amostra {#sec-q7}
+<!-- Questao 7 -->
+
+<!-- Questao 8 (teorica) e manuscrita e entregue a parte. -->

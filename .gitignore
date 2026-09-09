@@ -1,0 +1,24 @@
+# R
+.Rhistory
+.RData
+.Rproj.user/
+.Ruserdata/
+# renv: renv.lock e .Rprofile SAO versionados; a biblioteca nao
+renv/library/
+renv/staging/
+renv/python/
+renv/sandbox/
+# SEGREDOS -- nunca versionar credenciais da Kalshi.
+# Lembrete: dados de mercado (series/events/candlesticks) sao PUBLICOS e NAO
+# exigem credencial. Chave de API da Kalshi so serve para ORDENS/CARTEIRA, que
+# este trabalho nao usa. Se uma chave existir na sua maquina, ela fica FORA daqui.
+*.key
+*.pem
+*.p12
+.Renviron
+.env
+kalshi*.key
+# SO
+.DS_Store
+Thumbs.db
+*.log
