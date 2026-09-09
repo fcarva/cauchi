@@ -45,7 +45,10 @@ invisible(lapply(pkgs, library, character.only = TRUE))
 ## ---- config ----
 BASE          <- "https://api.elections.kalshi.com/trade-api/v2"
 CATEGORY      <- "Economics"        # categoria usada na descoberta
-SERIES_TICKER <- "KXFEDDECISION"    # <-- CONFIRME/AJUSTE apos rodar --discover
+SERIES_TICKER <- "KXFED"            # familia de NIVEL da FFR (strikes -T4.25).
+                                    # Diercks-Katz-Wright usam esta ("fed_levels",
+                                    # tickers FED-22DEC-T4.25), nao a de decisao.
+                                    # CONFIRME com --discover: a Kalshi renomeia.
 N_EVENTS_MAX  <- 12                 # nao mais que N reunioes (eventos) recentes
 DAYS_BACK     <- 200                # janela por mercado, em dias
 OUTDIR        <- "data/raw"         # DEVE bater com o que 01_build_series.R le
@@ -88,10 +91,13 @@ if (any(commandArgs(trailingOnly = TRUE) %in% c("--discover", "--discovery"))) {
   s <- list_series(CATEGORY)
   print(s, n = 200)
   cat("\nProcure a familia do Fed. Duas costumam aparecer, e a escolha importa:\n",
-      "  KXFED          - 'Fed funds rate after <mes> meeting?' -> desfechos sao\n",
-      "                   FAIXAS DE TAXA (buckets). Permite E[taxa] = sum(p_i * taxa_i).\n",
-      "  KXFEDDECISION  - 'Fed decision in <mes>?'               -> desfechos sao\n",
-      "                   CATEGORIAS de decisao (corte/manutencao/alta).\n",
+      "  KXFED          - nivel da FFR. Mercados tem strike no ticker ('...-T4.25')\n",
+      "                   e o preco e P(taxa ACIMA do strike): uma sobrevivencia.\n",
+      "                   E a familia usada por Diercks-Katz-Wright ('fed_levels').\n",
+      "                   O 01_build_series.R EXIGE esta: ele le o strike do ticker.\n",
+      "  KXFEDDECISION  - decisao. Desfechos CATEGORICOS ('...-H26'), sem strike\n",
+      "                   numerico. Exigiria um mapa categoria->bps feito a mao.\n",
+      "Confira no output abaixo se os tickers tem sufixo '-T<numero>'.\n",
       "Ajuste SERIES_TICKER no topo deste arquivo e rode sem --discover.\n", sep = "")
   quit(save = "no", status = 0)
 }

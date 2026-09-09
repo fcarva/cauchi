@@ -15,17 +15,24 @@ Markets* (referencia: `jdkatz21/Prediction_Markets_Public`).
 - **Frequencia:** diaria (a Kalshi existe desde 2021; mensal nao atinge as 120 obs minimas).
 - **Snapshot congelado em:** _AAAA-MM-DD_ (preencher).
 
-### Qual serie do Fed? (decisao em aberto — Bloco 1 do `00`)
-A Kalshi tem **duas** familias do Fed, e a escolha determina que serie da pra construir:
+### Qual serie do Fed? (resolvido)
+A Kalshi tem **duas** familias do Fed, e elas nao sao intercambiaveis:
 
-| `series_ticker` | Pergunta do mercado | Desfechos | Serve para |
-|---|---|---|---|
-| `KXFED` | "Fed funds rate after \<mes\> meeting?" | **faixas de taxa** (buckets) | `E[taxa] = sum(p_i * taxa_i)` — serie continua, direta |
-| `KXFEDDECISION` | "Fed decision in \<mes\>?" | **categorias** (corte/manutencao/alta) | `P(desfecho)`, ou taxa esperada via mapeamento categoria -> bps |
+| `series_ticker` | Ticker do mercado | O preco significa |
+|---|---|---|
+| **`KXFED`** (ex-`FED`) — *usada aqui* | `FED-22DEC-T4.25` | `P(taxa acima de 4.25)` |
+| `KXFEDDECISION` | `KXFEDDECISION-28JAN-H26` | `P(categoria)` (corte/manutencao/alta) |
 
-O scaffold vem com `KXFEDDECISION`. Se a serie-alvo for a **taxa esperada implicita**,
-`KXFED` tende a ser o caminho mais curto, porque o desfecho ja e numerico. Confirme os
-tickers reais rodando a descoberta antes de decidir — a Kalshi renomeia familias.
+Usamos a familia de **nivel**, que e a mesma de Diercks-Katz-Wright (o conjunto
+`fed_levels` em `code/kalshi_scraping/tickers.py` do replication package). O
+strike ja e numerico, entao a taxa esperada sai da distribuicao sem precisar de
+um mapa arbitrario categoria -> pontos-base.
+
+**Atencao:** o `yes_price` desses contratos e a probabilidade da **cauda**
+(`P(taxa > strike)`), nao a de um balde. Os strikes formam uma funcao de
+sobrevivencia, e a massa de cada balde sai por **diferenciacao**. Tratar cada
+desfecho como balde independente gera uma serie errada sem levantar erro
+nenhum. Ver `docs/metodologia.md`.
 
 ## Estrutura
 ```
@@ -37,6 +44,7 @@ data/raw/                o "banco" entregue (snapshot da Kalshi) — VERSIONADO
 data/processed/          serie derivada usada na analise
 output/figures, tables/  graficos e tabelas do relatorio
 report/relatorio.qmd     relatorio em PDF (graficos/tabelas integrados)
+docs/metodologia.md      cada decisao rastreada ate o codigo do paper
 ```
 
 ## Coleta (rodar uma unica vez)
@@ -84,14 +92,18 @@ exatamente os mesmos numeros e graficos. Por isso:
 | 8 | manuscrita (a parte) |
 
 ## Estado atual
-Scaffold + coletor prontos. Falta, nesta ordem:
-1. rodar `--discover` e fixar o `series_ticker` (ver tabela acima);
+Scaffold, coletor e construcao da serie prontos. Falta:
+1. rodar `--discover` e confirmar que os tickers do `KXFED` tem sufixo `-T<numero>`;
 2. rodar o `00` uma vez, conferir o resumo impresso e **commitar** o snapshot;
-3. `renv::init()` + commitar `renv.lock`;
-4. escrever o `01_build_series.R` sobre os rotulos de desfecho reais;
-5. Questoes 1-7 (`02`..`08`), so entao.
+3. rodar o `01` e validar (ele falha alto se a diferenciacao sair errada);
+4. `renv::init()` + commitar `renv.lock`;
+5. Questoes 1-7 (`02`..`08`).
 
-Os `_(preencher)_` do README (data do snapshot, versao do R) fecham no passo 2 e 3.
+O `01_build_series.R` foi escrito a partir da metodologia publicada do paper,
+mas **nao foi executado** contra dados reais (a sessao que o escreveu nao tinha
+R nem acesso a rede). As checagens internas falham alto de proposito.
+
+Os `_(preencher)_` do README (data do snapshot, versao do R) fecham nos passos 2 e 4.
 
 ## Licenca
 MIT (ver `LICENSE`). Sugestao: manter o repo **privado** ate a entrega/correcao (o professor
