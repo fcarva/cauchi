@@ -21,6 +21,31 @@ tab <- function(name) kable(read_csv(file.path("..", "output/tables", name), sho
 fig <- function(name, caption) include_graphics(file.path("..", "output/figures", name))
 ```
 
+## Hipotese e enquadramento
+
+Kagan & Baiocchi (2026) documentam que os precos da Kalshi se comportam como
+probabilidades genuinas, e crescentemente conforme a resolucao se aproxima: na
+categoria *Economics*, o escore de Brier cai de forma quase linear de 0,108 (tres
+meses) para 0,066 (fechamento), sobre 16.701 mercados resolvidos. A justificativa
+que oferecem e a Lei dos Grandes Numeros, e portanto o teste que executam e
+**transversal** -- reune 2,24 milhoes de mercados e compara frequencia realizada
+com preco declarado. Por construcao, esse desenho nada diz sobre a **trajetoria**
+de um mercado individual.
+
+Se o preco e uma probabilidade bem calibrada que se atualiza com a chegada de
+informacao, entao pela lei das expectativas iteradas ele e um **martingale**. Este
+trabalho testa essa implicacao em serie temporal, num unico mercado, pelo
+instrumental de Box-Jenkins. As previsoes correspondentes sao: a serie e I(1), suas
+diferencas sao ruido branco, e nenhum ARIMA supera o passeio aleatorio fora da
+amostra. A construcao da distribuicao implicita segue Diercks, Katz & Wright (2026).
+
+**Desvio declarado quanto a frequencia.** A lista indica preferencia por series
+mensais ou trimestrais. A serie aqui e diaria: a Kalshi opera desde 2021 e seus
+mercados de FFR desde 2022, de modo que uma serie mensal nao alcancaria as 120
+observacoes minimas; e o fenomeno de interesse -- atualizacao da expectativa com a
+chegada de informacao -- e intrinsecamente de alta frequencia. O minimo de 120
+observacoes e cumprido. A serie nao esta disponivel em pacote de R ou Python.
+
 ## Dados e reproducibilidade
 
 A serie foi construida a partir de trades individuais da familia `KXFED`, usando os
