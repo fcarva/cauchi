@@ -37,6 +37,7 @@ nenhum. Ver `docs/metodologia.md`.
 ## Estrutura
 ```
 R/00_pull_kalshi.R       coleta da API -> data/raw/ (rode UMA vez; congela o banco)
+scripts/pull_kalshi_trades.py coleta trades autenticados -> data/raw/
 R/01_build_series.R      painel bruto -> data/processed/serie_diaria.csv
 R/02..08_*.R             Questoes 1 a 7, na ordem de execucao
 run_all.R                reproduz 01..08 sobre o banco congelado
@@ -51,22 +52,24 @@ docs/metodologia.md      cada decisao rastreada ate o codigo do paper
 ```bash
 Rscript R/00_pull_kalshi.R --discover   # lista os series_ticker reais; nao grava nada
 # ajuste SERIES_TICKER no topo de R/00_pull_kalshi.R, depois:
-Rscript R/00_pull_kalshi.R              # grava data/raw/kalshi_fed_panel.csv
+Rscript R/00_pull_kalshi.R --refresh    # grava/atualiza data/raw/kalshi_fed_panel.csv
+python scripts/pull_kalshi_trades.py    # coleta trades historicos e recentes autenticados
 ```
-O script **se recusa a sobrescrever** um snapshot existente (`FORCE_REPULL <- TRUE`
-destrava de proposito). Ao final ele imprime linhas/reunioes/dias e os rotulos exatos
+O script **se recusa a sobrescrever** um snapshot existente; `--refresh` destrava a
+atualizacao de proposito. Ao final ele imprime linhas/reunioes/dias e os rotulos exatos
 dos desfechos — esses rotulos sao o que o `01_build_series.R` precisa para montar a serie.
 
-Nao e preciso credencial nenhuma. Se voce tiver uma chave de API da Kalshi, ela **nao**
-entra neste repo (ver `.gitignore`): serve para ordens/carteira, nao para dados.
+O coletor de candles e publico. O coletor de trades segue o pacote original e exige
+`KALSHI_KEYID` (ou `KALSHI_API_KEY_ID`) e `KALSHI_PRIVATE_KEY` em `.env`; a chave
+privada nao entra neste repo (ver `.gitignore`).
 
 ## Reprodutibilidade
 O criterio do professor e objetivo: rodar o codigo sobre o banco entregue tem de devolver
 exatamente os mesmos numeros e graficos. Por isso:
 
-1. **Os dados sao congelados.** `R/00_pull_kalshi.R` puxa da API (dado VIVO) e salva o
+1. **Os dados sao congelados.** Os coletores puxam da API (dado VIVO) e salvam o
    snapshot em `data/raw/`, que e **versionado no git**. A analise (`run_all.R`) **le o
-   snapshot congelado e nunca re-puxa** — `run_all.R` nao chama o `00`.
+   snapshot congelado e nunca re-puxa** — `run_all.R` nao chama os coletores.
 2. **Versoes travadas com `renv`:**
    ```r
    install.packages("renv"); renv::init(); renv::snapshot()   # gera renv.lock

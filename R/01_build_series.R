@@ -9,7 +9,8 @@
 #   code/convert_trades_to_pdfs/convert_trade_level_data_cdfs.R
 # com os parametros que eles usam para o FFR em
 #   code/convert_trades_to_pdfs/data_convert_runner.R  (bloco "FFR levels"):
-#   strike_int = 0.25, days_before_horizon = 180, moment_adjustment = .125
+#   strike_int = 0.25, moment_adjustment = .125; a janela foi ampliada para
+#   aproveitar todo o historico disponivel no snapshot.
 #
 # O PONTO NAO-OBVIO -----------------------------------------------------------
 # Os contratos de nivel da FFR na Kalshi sao 'FED-22DEC-T4.25' e o yes_price
@@ -40,10 +41,11 @@ invisible(lapply(pkgs, library, character.only = TRUE))
 
 ## ---- parametros (paper, bloco "FFR levels") ----
 ARQ_IN            <- "data/raw/kalshi_fed_panel.csv"
+ARQ_TRADES        <- "data/raw/kalshi_fed_trades.csv"
 ARQ_OUT           <- "data/processed/serie_diaria.csv"
 STRIKE_INT        <- 0.25              # espacamento dos strikes da FFR
 MOMENT_ADJUSTMENT <- STRIKE_INT / 2    # 0.125 -- ponto medio do balde
-DAYS_BEFORE       <- 180               # janela por reuniao
+DAYS_BEFORE       <- 180               # horizonte original do paper
 COL_PRECO         <- "mid"             # "mid" (mitiga bid-ask bounce) ou "yes_close"
 MIN_OBS           <- 120               # exigencia da lista
 
@@ -60,8 +62,38 @@ HORIZONTE_DIAS <- 60
 
 dir.create("data/processed", showWarnings = FALSE, recursive = TRUE)
 
-## ---- leitura + strike vindo do ticker ----
-painel <- readr::read_csv(ARQ_IN, show_col_types = FALSE)
+## ---- leitura + agregacao diaria ----
+if (file.exists(ARQ_TRADES)) {
+  message("Usando trades autenticados: ", ARQ_TRADES)
+  trades <- readr::read_csv(ARQ_TRADES, show_col_types = FALSE) |>
+    dplyr::mutate(
+      created_time = as.POSIXct(created_time, format = "%Y-%m-%dT%H:%M:%OSZ", tz = "UTC"),
+      date = as.Date(created_time),
+      event_ticker = stringr::str_remove(ticker, "-T\\d+\\.?\\d*$"),
+      preco = suppressWarnings(as.numeric(yes_price_dollars)) * 100,
+      volume = suppressWarnings(as.numeric(count_fp))
+    ) |>
+    dplyr::filter(is.finite(preco), !is.na(date))
+
+  painel <- trades |>
+    dplyr::arrange(created_time) |>
+    dplyr::group_by(event_ticker, ticker, date) |>
+    dplyr::summarise(
+      preco = dplyr::last(preco),
+      volume = sum(volume, na.rm = TRUE),
+      .groups = "drop"
+    ) |>
+    dplyr::group_by(event_ticker, ticker) |>
+    tidyr::complete(date = seq(min(date), max(date), by = "day")) |>
+    tidyr::fill(preco, .direction = "down") |>
+    dplyr::mutate(volume = dplyr::coalesce(volume, 0)) |>
+    dplyr::ungroup() |>
+    dplyr::filter(!is.na(preco))
+} else {
+  message("Trades nao encontrados; usando candles: ", ARQ_IN)
+  painel <- readr::read_csv(ARQ_IN, show_col_types = FALSE) |>
+    dplyr::mutate(preco = dplyr::coalesce(mid, yes_close) * 100)
+}
 
 painel <- painel |>
   dplyr::mutate(
@@ -82,7 +114,6 @@ if (all(is.na(painel$strike))) {
 # preco em CENTS (1-99), como no paper -- as constantes 99 e 49 abaixo dependem disso
 painel <- painel |>
   dplyr::filter(!is.na(strike)) |>
-  dplyr::mutate(preco = dplyr::coalesce(.data[[COL_PRECO]], yes_close) * 100) |>
   dplyr::filter(!is.na(preco)) |>
   dplyr::arrange(event_ticker, strike, date)
 
@@ -111,6 +142,32 @@ middle_out <- function(precos, alvo = 49) {
     adj[dir] <- cummin(c(precos[k], precos[dir]))[-1]
   }
   adj
+}
+
+redistribute_empty_bins <- function(prob, precos) {
+  if (length(prob) < 3) return(prob)
+  protegido <- which(!is.na(precos) & precos > 49)
+  protegido <- if (length(protegido)) max(protegido) else which.max(ifelse(is.na(precos), -Inf, precos))
+  repeat {
+    mudou <- FALSE
+    for (i in seq_len(length(prob) - 1L)) {
+      if (i != protegido && !is.na(precos[i]) && precos[i] > 49 &&
+          prob[i] > 0 && prob[i + 1] == 0) {
+        prob[i + 1] <- prob[i]
+        prob[i] <- 0
+        mudou <- TRUE
+      }
+        if (i != protegido && (i + 1L) != protegido && !is.na(precos[i]) &&
+          precos[i] < 49 &&
+          prob[i] == 0 && prob[i + 1] > 0) {
+        prob[i] <- prob[i + 1]
+        prob[i + 1] <- 0
+        mudou <- TRUE
+      }
+    }
+    if (!mudou) break
+  }
+  prob
 }
 
 painel <- painel |>
@@ -144,6 +201,8 @@ probs <- dplyr::bind_rows(
   ) |>
   # massa negativa e residuo de ruido/arredondamento; zera antes de normalizar
   dplyr::mutate(prob = pmax(prob, 0)) |>
+  dplyr::group_by(event_ticker, date) |>
+  dplyr::mutate(prob = redistribute_empty_bins(prob, preco_aj)) |>
   dplyr::filter(!is.na(prob)) |>
   dplyr::mutate(soma = sum(prob, na.rm = TRUE)) |>
   dplyr::filter(soma > 0) |>

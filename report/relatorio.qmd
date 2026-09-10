@@ -1,13 +1,152 @@
 ---
-title: "Modelagem Box-Jenkins de uma serie de mercado de previsao (Kalshi/Fed)"
-author: "Felipe Carvalho — PPGEco/UFES, Econometria II"
+title: "Modelagem Box-Jenkins da taxa esperada do Fed na Kalshi"
+author: "Felipe Carvalho - PPGEco/UFES, Econometria II"
 date: today
 lang: pt
 format:
   pdf:
     number-sections: true
     fig-pos: "H"
+execute:
+  echo: false
+  warning: false
+  message: false
 ---
+
+```{r}
+library(knitr)
+library(readr)
+library(ggplot2)
+tab <- function(name) kable(read_csv(file.path("..", "output/tables", name), show_col_types = FALSE), digits = 4)
+fig <- function(name, caption) include_graphics(file.path("..", "output/figures", name))
+```
+
+## Dados e reproducibilidade
+
+A serie foi construida a partir de trades individuais da familia `KXFED`, usando os
+endpoints historico e recente da API da Kalshi. O snapshot entregue contem 63.929
+trades em 98 mercados. A transformacao diaria usa o ultimo preco observado no dia,
+volume agregado e preenchimento forward de dias sem trades. A distribuicao implicita
+e obtida diferenciando a sobrevivencia dos contratos por strike, apos o ajuste
+`middle-out` e a redistribuicao de bins vazios.
+
+```{r}
+tab("q1_resumo.csv")
+```
+
+# Preparacao e inspecao preliminar
+
+## Questao 1
+
+```{r}
+fig("q1_nivel.png", "Serie em nivel")
+fig("q1_diferenca.png", "Primeira diferenca")
+```
+
+A serie e diaria e cobre 181 observacoes no horizonte metodologico de 180 dias.
+O grafico em nivel mostra variacao de nivel associada a atualizacao das expectativas
+para a reuniao, sem sazonalidade calendarial evidente. A dispersao deve ser lida com
+cautela porque os strikes disponiveis e a liquidez variam ao longo do horizonte.
+
+# Ordem de integracao
+
+## Questao 2
+
+Os testes ADF, PP e KPSS foram calculados com especificacoes sem constante, com
+constante e com constante e tendencia. No ADF, o numero maximo de defasagens e 12 e
+a selecao e feita por AIC; PP e KPSS usam a largura curta de Bartlett. Os p-valores
+apresentados sao aproximacoes interpoladas entre os valores criticos reportados pelo
+`urca`, devendo ser interpretados junto com a estatistica e os valores criticos.
+
+```{r}
+tab("q2_testes_raiz_unitaria.csv")
+```
+
+```{r}
+tab("q2_decisao.csv")
+```
+
+A decisao adotada e `d = 1` e `D = 0`. A primeira diferenca e a transformacao usada
+nas etapas de identificacao; nao foi imposta diferenca sazonal, pois a frequencia
+diaria nao mostrou evidencia suficiente de uma sazonalidade deterministica estavel.
+
+# Identificacao
+
+## Questao 3
+
+```{r}
+fig("q3_fac_ficp.png", "FAC e FACP da primeira diferenca")
+tab("q3_candidatos.csv")
+```
+
+Foram propostos ARIMA(1,1,0), ARIMA(1,1,1) e ARIMA(3,1,2). Todos usam a mesma
+variavel dependente e a mesma amostra efetiva, tornando a comparacao por AIC e BIC
+interpretavel.
+
+# Estimacao e selecao
+
+## Questao 4
+
+```{r}
+tab("q4_estimacao_modelos.csv")
+tab("q4_selecao.csv")
+fig("q4_raizes.png", "Raizes estimadas")
+```
+
+Os modelos foram estimados por maxima verossimilhanca. O AIC foi usado para a escolha
+operacional; o BIC e reportado para avaliar a penalizacao mais forte por complexidade.
+Os modulos das raizes sao reportados em `q4_raizes.csv`; valores superiores a um
+indicam estacionariedade/invertibilidade na convencao utilizada.
+
+# Diagnostico
+
+## Questao 5
+
+```{r}
+fig("q5_diagnostico_residuos.png", "Diagnostico dos residuos")
+tab("q5_diagnostico.csv")
+tab("q5_sobreacte.csv")
+```
+
+O Ljung-Box foi calculado no lag 14 com correcao pelos graus de liberdade do modelo.
+O teste de Jarque-Bera avalia normalidade e o ARCH-LM usa sete defasagens dos
+residuos ao quadrado. O sobreajuste deliberado acrescenta um termo AR e um termo MA
+para verificar se os coeficientes adicionais justificam a complexidade.
+
+# Sobrediferenciacao
+
+## Questao 6
+
+```{r}
+tab("q6_comparacao.csv")
+tab("q6_ma_raiz.csv")
+fig("q6_fac_residuos.png", "FAC dos residuos: modelo e sobrediferenciacao")
+```
+
+O modelo sobrediferenciado aumenta `d` em uma unidade, mantendo os demais termos do
+modelo selecionado. A comparacao de variancia residual, coeficiente MA e raiz permite
+avaliar o custo pratico de diferenciar em excesso.
+
+# Previsao fora da amostra
+
+## Questao 7
+
+As ultimas 24 observacoes foram reservadas para validacao. O primeiro esquema usa
+origem fixa e previsao multipassos; o segundo usa origem movel e previsao de um passo,
+com os coeficientes mantidos. Os benchmarks sao o passeio aleatorio e o ingenuo
+sazonal com periodo semanal.
+
+```{r}
+fig("q7_previsao.png", "Previsao e intervalo de 95 por cento")
+tab("q7_metricas_previsao.csv")
+tab("q7_cobertura.csv")
+```
+
+As metricas devem ser comparadas sem alterar o modelo para favorecer o resultado:
+RMSE, MAE e MAPE menores indicam melhor desempenho, enquanto a cobertura deve ser
+comparada com a nominal de 95 por cento.
+
+<!-- A Questao 8 e manuscrita, conforme as normas da lista. -->
 
 # Preparacao e inspecao preliminar {#sec-q1}
 <!-- Questao 1 -->

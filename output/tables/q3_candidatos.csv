@@ -1,0 +1,4 @@
+model,p,d,q,justificativa
+"ARIMA(1,1,0)",1,1,0,Persistencia no primeiro lag da diferenca.
+"ARIMA(1,1,1)",1,1,1,Especificacao intermediaria para persistencia e choque.
+"ARIMA(3,1,2)",3,1,2,Estrutura estendida para os lags persistentes observados na FAC/FACP.

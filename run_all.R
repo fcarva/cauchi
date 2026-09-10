@@ -2,7 +2,7 @@
 # Pre-requisito:  renv::restore()   (instala as versoes travadas em renv.lock)
 #
 # ATENCAO: NAO re-executa 00_pull_kalshi.R. Os dados da Kalshi sao VIVOS; re-puxar
-# depois muda os numeros. A analise le o snapshot CONGELADO em data/raw/.
+# depois muda os numeros. A analise le os snapshots CONGELADOS em data/raw/.
 source("R/01_build_series.R")        # painel -> serie diaria unica
 source("R/02_inspecao.R")            # Questao 1
 source("R/03_integracao.R")          # Questao 2
