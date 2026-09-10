@@ -9,13 +9,43 @@ rotulo <- readr::read_csv(file.path(OUT_TAB, "q4_selecao.csv"),
 res <- as.numeric(stats::residuals(fit))
 res <- res[is.finite(res)]
 
-png(file.path(OUT_FIG, "q5_diagnostico_residuos.png"), width = 1400, height = 1000, res = 140)
-par(mfrow = c(2, 2))
-plot(res, type = "l", main = "Residuos", xlab = "Tempo", ylab = "residuo")
-acf(res, lag.max = 42, main = "FAC dos residuos")
-hist(res, breaks = "FD", main = "Histograma dos residuos", xlab = "residuo")
-qqnorm(res, main = "Q-Q plot"); qqline(res, col = "#C44536")
-dev.off()
+## ---- figura de diagnostico: quatro paineis, um sistema visual ---------------
+library(ggplot2)
+source("R/99_viz.R")
+res_bp <- res * 100                                    # pontos-base, como na Q1
+datas_res <- tail(serie$date, length(res_bp))
+pA <- ggplot(data.frame(date = datas_res, r = res_bp), aes(date, r)) +
+  geom_hline(yintercept = 0, colour = COR$tinta, linewidth = 0.3) +
+  geom_segment(aes(xend = date, yend = 0), colour = COR$serie_1, linewidth = 0.3) +
+  scale_x_date(date_breaks = "2 months", date_labels = "%b\n%Y") +
+  scale_y_continuous(labels = escala_br(0)) +
+  labs(title = "A. Resíduos", x = NULL, y = "Pontos-base") + theme_feds()
+fac_res <- dados_fac(res, 28)
+fac_res <- structure(fac_res[fac_res$painel == "FAC", ], banda = attr(fac_res, "banda"))
+pB <- grafico_fac(fac_res, sazonal = PERIODO_SAZONAL) +
+  labs(title = "B. FAC dos resíduos") + theme(strip.text = element_blank())
+dens <- data.frame(x = seq(min(res_bp), max(res_bp), length.out = 300))
+dens$y <- stats::dnorm(dens$x, mean(res_bp), stats::sd(res_bp))
+pC <- ggplot(data.frame(r = res_bp), aes(r)) +
+  geom_histogram(aes(y = after_stat(density)), bins = 40, fill = COR$serie_1,
+                 colour = "white", linewidth = 0.2) +
+  geom_line(data = dens, aes(x, y), colour = COR$serie_2, linewidth = 0.5) +
+  scale_x_continuous(labels = escala_br(0)) + scale_y_continuous(labels = escala_br(2)) +
+  labs(title = "C. Histograma e normal ajustada", x = "Pontos-base", y = "Densidade") +
+  theme_feds()
+pD <- ggplot(data.frame(r = res_bp), aes(sample = r)) +
+  stat_qq_line(colour = COR$serie_2, linewidth = 0.5) +
+  stat_qq(colour = COR$serie_1, size = 0.8) +
+  scale_x_continuous(labels = escala_br(0)) + scale_y_continuous(labels = escala_br(0)) +
+  labs(title = "D. Quantis contra a normal", x = "Quantil teórico",
+       y = "Quantil amostral (p.b.)") + theme_feds()
+p_q5 <- patchwork::wrap_plots(pA, pB, pC, pD, ncol = 2) +
+  patchwork::plot_annotation(
+    caption = nota_fonte(paste0("Resíduos do ", rotulo, ". Em B, faixa sombreada: banda ",
+                                "de 95%; em azul, defasagens fora da banda. Em C e D, a ",
+                                "curva e a reta vermelhas são a referência normal.")),
+    theme = theme_feds())
+salvar_fig(p_q5, "q5_diagnostico_residuos", altura = 5.0)
 
 lb_lag <- 14L
 lb <- stats::Box.test(res, lag = lb_lag, type = "Ljung-Box", fitdf = length(stats::coef(fit)))
@@ -127,6 +157,9 @@ overfit_table <- do.call(rbind, Map(model_row, overfits, names(overfits)))
 overfit_table$AIC_vs_selecionado <- overfit_table$AIC - AIC(fit)
 overfit_table$melhora_AIC <- overfit_table$AIC_vs_selecionado < 0
 write_table(overfit_table, "q5_sobreacte.csv")
+write_table(rbind(coef_long(fit, rotulo),
+                  do.call(rbind, Map(coef_long, overfits, names(overfits)))),
+            "q5_sobreajuste_coeficientes.csv")
 
 ## ---- Q5(d): log de descartados (continua o aberto no 05) ---------------------
 for (i in seq_len(nrow(overfit_table))) {
@@ -136,12 +169,12 @@ for (i in seq_len(nrow(overfit_table))) {
 	registrar_descarte(
 		modelo = m,
 		etapa = "Q5(e) sobreajuste deliberado",
-		motivo = if (inadmissivel) "termo extra torna o polinomio inadmissivel"
-		         else if (!overfit_table$melhora_AIC[i]) "termo extra nao melhora o ajuste"
-		         else "termo extra melhora o AIC -- REVER a especificacao selecionada",
-		evidencia = sprintf("AIC %.4f contra %.4f do %s (diferenca %+.4f); admissivel: %s",
+		motivo = if (inadmissivel) "termo extra torna o polinômio inadmissível"
+		         else if (!overfit_table$melhora_AIC[i]) "termo extra não melhora o ajuste"
+		         else "termo extra melhora o AIC -- rever a especificação selecionada",
+		evidencia = sprintf("AIC %.4f contra %.4f do %s (diferença %+.4f); admissível: %s",
 		                    overfit_table$AIC[i], AIC(fit), rotulo,
-		                    overfit_table$AIC_vs_selecionado[i], all(rz$admissivel)),
+		                    overfit_table$AIC_vs_selecionado[i], if (all(rz$admissivel)) "sim" else "não"),
 		questao = "Q5(e)"
 	)
 }

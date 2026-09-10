@@ -35,49 +35,55 @@ save_gg <- function(plot, name, width = 8, height = 5) {
   ggplot2::ggsave(file.path(OUT_FIG, name), plot, width = width, height = height, dpi = 160)
 }
 
-critical_p <- function(stat, critical) {
-  critical <- sort(as.numeric(critical), decreasing = TRUE)
+# Valores criticos PELO NOME da coluna. O urca nao usa a mesma ordem em todos os
+# testes -- ur.df e ur.pp devolvem (1pct, 5pct, 10pct); ur.kpss devolve (10pct,
+# 5pct, 2.5pct, 1pct). A versao anterior lia por posicao: a coluna critical_10
+# guardava o valor de 1% no ADF/PP, e a critical_1 do KPSS era o de 2,5%.
+cv_por_nome <- function(fit) as.numeric(fit@cval[1, c("10pct", "5pct", "1pct")])
+
+# p-valor aproximado por interpolacao entre os valores criticos de 10%, 5% e 1%,
+# censurado em [0,01; 0,10]. 'cauda' importa: ADF e PP rejeitam a raiz unitaria
+# quando a estatistica fica ABAIXO do critico; o KPSS rejeita a estacionariedade
+# quando fica ACIMA. A versao anterior tratava os tres como cauda esquerda, o que
+# invertia o KPSS: um nivel que rejeitava com folga saia com p = 0,10.
+critical_p <- function(stat, cv, cauda = c("esquerda", "direita")) {
+  cauda <- match.arg(cauda)
   if (!is.finite(stat)) return(NA_real_)
-  if (stat <= min(critical)) return(0.01)
-  if (stat >= max(critical)) return(0.10)
-  approx(x = critical, y = c(0.10, 0.05, 0.01)[seq_along(critical)],
-         xout = stat, rule = 2)$y
+  s <- if (cauda == "esquerda") -stat else stat
+  c <- if (cauda == "esquerda") -cv else cv          # agora: rejeita se s > c
+  if (s >= c[3]) return(0.01)
+  if (s <= c[1]) return(0.10)
+  stats::approx(x = c, y = c(0.10, 0.05, 0.01), xout = s)$y
 }
 
 run_unit_root_tests <- function(x, label, max_lag = 12) {
   rows <- list()
+  linha <- function(test, spec, stat, cv, cauda, lags, criterio) {
+    data.frame(series = label, test = test, specification = spec, statistic = stat,
+               critical_10 = cv[1], critical_5 = cv[2], critical_1 = cv[3],
+               p_value_approx = critical_p(stat, cv, cauda), lags = lags,
+               lag_selection = criterio, stringsAsFactors = FALSE)
+  }
   for (type in c("none", "drift", "trend")) {
     fit <- urca::ur.df(x, type = type, lags = max_lag, selectlags = "AIC")
-    stat <- as.numeric(fit@teststat[1])
-    cv <- as.numeric(fit@cval[1, ])
-    rows[[length(rows) + 1]] <- data.frame(
-      series = label, test = "ADF", specification = type,
-      statistic = stat, critical_10 = cv[1], critical_5 = cv[2], critical_1 = cv[3],
-      p_value_approx = critical_p(stat, cv), lags = max_lag,
-      lag_selection = "AIC", stringsAsFactors = FALSE
-    )
+    # Q2(a): a defasagem ESCOLHIDA pelo AIC e o numero de termos z.diff.lag que
+    # sobraram na regressao de teste -- nao o maximo permitido.
+    escolhida <- sum(grepl("^z\\.diff\\.lag", rownames(fit@testreg$coefficients)))
+    rows[[length(rows) + 1]] <- linha("ADF", type, as.numeric(fit@teststat[1]),
+                                      cv_por_nome(fit), "esquerda", escolhida,
+                                      sprintf("AIC (max. %d)", max_lag))
   }
   for (model in c("constant", "trend")) {
     fit <- urca::ur.pp(x, type = "Z-tau", model = model, lags = "short")
-    stat <- as.numeric(fit@teststat[1])
-    cv <- as.numeric(fit@cval[1, ])
-    rows[[length(rows) + 1]] <- data.frame(
-      series = label, test = "PP", specification = model,
-      statistic = stat, critical_10 = cv[1], critical_5 = cv[2], critical_1 = cv[3],
-      p_value_approx = critical_p(stat, cv), lags = NA_integer_,
-      lag_selection = "short Bartlett", stringsAsFactors = FALSE
-    )
+    rows[[length(rows) + 1]] <- linha("PP", model, as.numeric(fit@teststat[1]),
+                                      cv_por_nome(fit), "esquerda", fit@lag,
+                                      "Bartlett curta")
   }
   for (type in c("mu", "tau")) {
     fit <- urca::ur.kpss(x, type = type, lags = "short")
-    stat <- as.numeric(fit@teststat)
-    cv <- as.numeric(fit@cval[1, ])
-    rows[[length(rows) + 1]] <- data.frame(
-      series = label, test = "KPSS", specification = type,
-      statistic = stat, critical_10 = cv[1], critical_5 = cv[2], critical_1 = cv[3],
-      p_value_approx = critical_p(stat, cv), lags = NA_integer_,
-      lag_selection = "short Bartlett", stringsAsFactors = FALSE
-    )
+    rows[[length(rows) + 1]] <- linha("KPSS", type, as.numeric(fit@teststat),
+                                      cv_por_nome(fit), "direita", fit@lag,
+                                      "Bartlett curta")
   }
   do.call(rbind, rows)
 }
@@ -153,6 +159,18 @@ model_row <- function(fit, name) {
     AIC = AIC(fit), BIC = BIC(fit), nobs = stats::nobs(fit),
     stringsAsFactors = FALSE
   )
+}
+
+# Coeficientes em formato longo (uma linha por parametro). E a materia-prima das
+# tabelas de estimacao do relatorio; model_row() continua existindo para os CSVs
+# legados, mas guarda os coeficientes como texto e nao serve para diagramar.
+coef_long <- function(fit, nome) {
+  cf <- stats::coef(fit)
+  se <- sqrt(diag(fit$var.coef))[names(cf)]
+  t  <- cf / se
+  data.frame(modelo = nome, parametro = names(cf), estimativa = unname(cf),
+             erro_padrao = unname(se), estatistica_t = unname(t),
+             p_valor = 2 * stats::pnorm(-abs(unname(t))), stringsAsFactors = FALSE)
 }
 
 metric_row <- function(actual, predicted, model, scheme) {

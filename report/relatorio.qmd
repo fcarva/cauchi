@@ -1,12 +1,40 @@
 ---
 title: "Modelagem Box-Jenkins da taxa esperada do Fed na Kalshi"
-author: "Felipe Carvalho - PPGEco/UFES, Econometria II"
+subtitle: "Lista 01 --- Econometria II"
+author: "Felipe Carvalho --- PPGEco/UFES"
 date: today
-lang: pt
+date-format: "D [de] MMMM [de] YYYY"
+lang: pt-BR
 format:
   pdf:
+    documentclass: article
+    papersize: a4
+    fontsize: 11pt
+    geometry:
+      - top=2.5cm
+      - bottom=2.5cm
+      - left=2.5cm
+      - right=2.5cm
     number-sections: true
     fig-pos: "H"
+    tbl-cap-location: top
+    fig-cap-location: top
+    include-in-header:
+      text: |
+        \usepackage{caption}
+        \captionsetup{font=small, labelfont=bf, labelsep=period,
+                      justification=raggedright, singlelinecheck=false, skip=5pt}
+        \usepackage{float}
+        % Paginas so de floats: empilhar no topo, nao centralizar na vertical.
+        \makeatletter
+        \setlength{\@fptop}{0pt}
+        \setlength{\@fpsep}{18pt plus 2pt}
+        \makeatother
+crossref:
+  fig-title: Figura
+  tbl-title: Tabela
+  fig-prefix: Figura
+  tbl-prefix: Tabela
 execute:
   echo: false
   warning: false
@@ -14,285 +42,385 @@ execute:
 ---
 
 ```{r}
+#| include: false
 library(knitr)
-library(readr)
-library(ggplot2)
-tab <- function(name) kable(read_csv(file.path("..", "output/tables", name), show_col_types = FALSE), digits = 4)
-fig <- function(name, caption) include_graphics(file.path("..", "output/figures", name))
+opts_chunk$set(out.width = "100%")
+source("_tabelas.R")
+# As figuras sao gravadas pelo pipeline em PDF vetorial, na largura exata da
+# mancha de texto (16 cm), e entram em escala 1:1.
+fig <- function(nome) include_graphics(file.path("..", "output", "figures", paste0(nome, ".pdf")))
 ```
 
-## Hipotese e enquadramento
+# Hipótese e enquadramento
 
-Kagan & Baiocchi (2026) documentam que os precos da Kalshi se comportam como
-probabilidades genuinas, e crescentemente conforme a resolucao se aproxima: na
-categoria *Economics*, o escore de Brier cai de forma quase linear de 0,108 (tres
+Kagan & Baiocchi (2026) documentam que os preços da Kalshi se comportam como
+probabilidades genuínas, e crescentemente conforme a resolução se aproxima: na
+categoria *Economics*, o escore de Brier cai de forma quase linear de 0,108 (três
 meses) para 0,066 (fechamento), sobre 16.701 mercados resolvidos. A justificativa
-que oferecem e a Lei dos Grandes Numeros, e portanto o teste que executam e
-**transversal** -- reune 2,24 milhoes de mercados e compara frequencia realizada
-com preco declarado. Por construcao, esse desenho nada diz sobre a **trajetoria**
+que oferecem é a Lei dos Grandes Números, e portanto o teste que executam é
+**transversal** --- reúne 2,24 milhões de mercados e compara frequência realizada
+com preço declarado. Por construção, esse desenho nada diz sobre a **trajetória**
 de um mercado individual.
 
-Este trabalho testa em serie temporal, num unico mercado, uma implicacao de
-precos que se atualizam com a chegada de informacao, usando Box-Jenkins. As
-previsoes correspondentes sao: a serie e I(1), suas diferencas sao ruido branco,
-e nenhum ARIMA supera o passeio aleatorio fora da amostra. Os artigos de referencia
-nao executam esse teste temporal; a construcao da distribuicao implicita segue
+Este trabalho testa em série temporal, num único mercado, uma implicação de
+preços que se atualizam com a chegada de informação, usando Box-Jenkins. As
+previsões correspondentes são: a série é I(1), suas diferenças são ruído branco,
+e nenhum ARIMA supera o passeio aleatório fora da amostra. Os artigos de referência
+não executam esse teste temporal; a construção da distribuição implícita segue
 Diercks, Katz & Wright (2026).
 
-**Desvio declarado quanto a frequencia.** A lista indica preferencia por series
-mensais ou trimestrais. A serie aqui e diaria: a Kalshi opera desde 2021 e seus
-mercados de FFR desde 2022, de modo que uma serie mensal nao alcancaria as 120
-observacoes minimas; e o fenomeno de interesse -- atualizacao da expectativa com a
-chegada de informacao -- e intrinsecamente de alta frequencia. O minimo de 120
-observacoes e cumprido. A serie nao esta disponivel em pacote de R ou Python.
+**Desvio declarado quanto à frequência.** A lista indica preferência por séries
+mensais ou trimestrais. A série aqui é diária: a Kalshi opera desde 2021 e seus
+mercados de FFR desde 2022, de modo que uma série mensal não alcançaria as 120
+observações mínimas; e o fenômeno de interesse --- atualização da expectativa com a
+chegada de informação --- é intrinsecamente de alta frequência. O mínimo de 120
+observações é cumprido. A série não está disponível em pacote de R ou Python.
 
-## Dados e reproducibilidade
+# Dados e reprodutibilidade
 
-A serie foi construida a partir de trades individuais da familia `KXFED`, usando os
-endpoints historico e recente da API da Kalshi. O snapshot entregue contem 63.929
-trades em 98 mercados. A transformacao diaria usa o ultimo preco observado no dia,
-volume agregado e preenchimento forward de dias sem trades. A reuniao escolhida e a
-de maior volume total. A distribuicao implicita e obtida diferenciando a sobrevivencia
-dos contratos por strike, apos o ajuste `middle-out` e a redistribuicao de bins vazios.
-
-```{r}
-tab("q1_resumo.csv")
-```
-
-# Preparacao e inspecao preliminar
-
-## Questao 1
+A série foi construída a partir de negócios individuais da família `KXFED`, usando os
+endpoints histórico e recente da API da Kalshi. O snapshot entregue, congelado em
+10/09/2026, contém 64.106 negócios em 98 mercados, com hash SHA-256 de cada arquivo
+registrado em `manifest.json`. A transformação diária usa o último preço negociado no
+dia, o volume agregado e o preenchimento para a frente dos dias sem negócio. A reunião
+escolhida é a de maior volume total. A distribuição implícita é obtida diferenciando a
+função de sobrevivência dos contratos por strike, após o ajuste *middle-out* e a
+redistribuição de classes vazias. A @tbl-descritivas resume a série.
 
 ```{r}
-fig("q1_nivel.png", "Serie em nivel")
-fig("q1_diferenca.png", "Primeira diferenca")
+#| label: tbl-descritivas
+#| tbl-cap: "Estatísticas descritivas"
+t_descritivas()
 ```
 
-A serie e diaria e cobre 181 observacoes no horizonte metodologico de 180 dias
-anteriores a reuniao do FOMC. O horizonte ancora na data em que o mercado para de
-negociar (`close_time`), que e a data da reuniao, e nao na data de liquidacao da
-Kalshi (`expiration_time`), uma semana posterior; as duas constam da serie.
+# Preparação e inspeção preliminar
 
-O grafico em nivel mostra variacao associada a atualizacao das expectativas para a
-reuniao. A dispersao deve ser lida como funcao do horizonte: ela encolhe a medida
-que a reuniao se aproxima e resta menos incerteza a resolver, o que a Questao 5
-quantifica.
+## Questão 1
 
 ```{r}
-tab("q1_atividade_semanal.csv")
+#| label: fig-serie
+#| fig-cap: "Taxa esperada implícita para a reunião do FOMC de julho de 2026"
+fig("q1_serie")
 ```
 
-A tabela acima mede a atividade por dia da semana e sustenta uma decisao que
-aparece nas Questoes 2, 3 e 7: o periodo sazonal candidato e `s = 7`, nao `s = 5`.
-A Kalshi negocia nos sete dias, e o contrato analisado teve negocios em 22 dos 26
-sabados e em 23 dos 26 domingos da amostra. O que distingue o fim de semana nao e a
-ausencia de negociacao, e sim a espessura do livro: o volume diario cai por um fator
-de tres a sete. Nenhuma observacao e, portanto, mero carregamento do ultimo preco de
-sexta-feira, e o calendario relevante tem sete dias.
+A série é diária e cobre 181 observações no horizonte metodológico de 180 dias
+anteriores à reunião do FOMC. O horizonte ancora na data em que o mercado para de
+negociar (`close_time`), que é a data da reunião, e não na data de liquidação da
+Kalshi (`expiration_time`), uma semana posterior; as duas constam da série.
 
-# Ordem de integracao
-
-## Questao 2
-
-Os testes ADF, PP e KPSS foram calculados com especificacoes sem constante, com
-constante e com constante e tendencia. No ADF, o numero maximo de defasagens e 12 e
-a selecao e feita por AIC; PP e KPSS usam a largura curta de Bartlett. Os p-valores
-apresentados sao aproximacoes interpoladas entre os valores criticos reportados pelo
-`urca`, devendo ser interpretados junto com a estatistica e os valores criticos.
+O painel A da @fig-serie mostra a trajetória da expectativa ao longo do horizonte; o
+painel B, suas variações diárias. A dispersão deve ser lida como função do horizonte:
+ela é concentrada em março, quando a incerteza sobre a reunião ainda era grande, e
+encolhe à medida que a data se aproxima --- o que a Questão 5 quantifica. Os maiores
+saltos, de até 82 pontos-base num único dia, são negócios reais em livro raso, e não
+artefatos de construção.
 
 ```{r}
-tab("q2_testes_raiz_unitaria.csv")
+#| label: tbl-atividade
+#| tbl-cap: "Atividade de negociação por dia da semana"
+t_atividade()
+```
+
+A @tbl-atividade sustenta uma decisão que reaparece nas Questões 2, 3 e 7: o período
+sazonal candidato é $s = 7$, e não $s = 5$. A Kalshi negocia nos sete dias, e o
+contrato analisado teve negócios em 22 dos 26 sábados e em 23 dos 26 domingos da
+amostra. O que distingue o fim de semana não é a ausência de negociação, e sim a
+espessura do livro: o volume diário cai por um fator de três a sete. Nenhuma
+observação é, portanto, mero carregamento do último preço de sexta-feira, e o
+calendário relevante tem sete dias.
+
+# Ordem de integração
+
+## Questão 2
+
+Os testes ADF, PP e KPSS foram calculados com as especificações sem termos
+determinísticos, com constante e com constante e tendência (@tbl-raiz). No ADF, a
+defasagem é escolhida pelo AIC a partir de um máximo de 12; PP e KPSS usam a janela
+curta de Bartlett. As hipóteses nulas diferem: ADF e PP testam a raiz unitária, o
+KPSS testa a estacionariedade, e as estrelas indicam rejeição da respectiva nula.
+
+```{r}
+#| label: tbl-raiz
+#| tbl-cap: "Testes de raiz unitária"
+t_raiz()
+```
+
+Em nível, a evidência é mista, e convém dizê-lo em vez de escolher o teste que
+convém. O KPSS rejeita a estacionariedade com folga nas duas especificações, e o ADF
+sem termos determinísticos e com tendência não rejeita a raiz unitária. Mas o ADF com
+constante e o PP com tendência a rejeitam. A ambiguidade tem causa identificável: a
+série muda de regime no meio da amostra --- dispersa até março, quase parada depois
+(@fig-serie) ---, e testes de raiz unitária sabidamente perdem tamanho e potência sob
+quebra na variância. Na primeira diferença, ao contrário, os seis testes concordam:
+ADF e PP rejeitam a raiz unitária em todas as especificações e o KPSS deixa de
+rejeitar a estacionariedade. A decisão é $d = 1$, que é também o que a hipótese de
+martingale prevê; diferenciar uma série que fosse estacionária em nível apareceria
+como raiz MA unitária na Questão 6, e ela aparece apenas quando se diferencia uma
+segunda vez.
+
+```{r}
+#| label: tbl-sazonal
+#| tbl-cap: "Evidência sobre a diferença sazonal"
+t_sazonal()
+```
+
+$D = 0$ é resultado, não omissão (@tbl-sazonal). Com $s = 7$ justificado pela
+atividade de negociação, cinco evidências independentes convergem: os testes de raiz
+unitária sazonal OCSB e Canova-Hansen indicam $D = 0$; a FAC da primeira diferença fica
+dentro da banda de 95% nos lags 7, 14 e 21; e impor $D = 1$ piora o AIC e o BIC em
+cerca de 112 pontos. Diferenciar sazonalmente uma série sem raiz sazonal introduz uma
+raiz MA não-invertível, exatamente o defeito que a Questão 6 examina.
+
+# Identificação
+
+## Questão 3
+
+```{r}
+#| label: fig-fac
+#| fig-cap: "Funções de autocorrelação e de autocorrelação parcial da primeira diferença"
+fig("q3_fac_ficp")
+```
+
+A FAC da primeira diferença corta abruptamente após o lag 1, com um coeficiente
+negativo e forte, enquanto a FACP decai ao longo de vários lags (@fig-fac). Esse par
+de padrões identifica um MA(1); o lag 1 isolado da FACP sustenta a leitura AR(1)
+concorrente. O coeficiente negativo no primeiro lag é o que a literatura de
+microestrutura atribui à oscilação entre as pontas de compra e de venda, e não à
+previsibilidade econômica.
+
+```{r}
+#| label: tbl-candidatos
+#| tbl-cap: "Modelos candidatos"
+t_candidatos()
+```
+
+Daí os candidatos da @tbl-candidatos: ARIMA(0,1,1), a leitura canônica; ARIMA(1,1,0),
+a leitura autorregressiva; ARIMA(1,1,1), a mistura parcimoniosa. O ARIMA(3,1,3) entra
+como quarta especificação, deliberadamente estendida, para ser confrontada com a
+restrição de admissibilidade da Questão 4 --- os lags 2, 3, 5, 6 e 8 da FACP sugerem
+estrutura mais rica, e é útil verificar o que acontece quando o critério de informação
+a premia. Todos usam a mesma variável dependente e a mesma amostra efetiva, condição
+sem a qual a comparação por AIC e BIC não seria válida.
+
+```{r}
+#| label: tbl-lags
+#| tbl-cap: "Autocorrelações nas defasagens sazonais e vizinhas"
+t_lags()
+```
+
+As defasagens sazonais foram inspecionadas explicitamente: seis ciclos completos na
+@fig-fac e, na @tbl-lags, os lags 7, 14 e 21 com suas vizinhanças. Nenhuma defasagem
+sazonal fica fora da banda de 95%. Por isso nenhum candidato leva componente sazonal:
+a ausência de sazonalidade é uma conclusão apoiada em evidência.
+
+# Estimação e seleção
+
+## Questão 4
+
+```{r}
+#| label: tbl-estimacao
+#| tbl-cap: "Estimação dos modelos candidatos"
+t_estimacao()
+```
+
+Os modelos foram estimados por máxima verossimilhança sobre a mesma amostra efetiva
+($n = 180$ após a diferenciação), o que torna AIC e BIC comparáveis entre as colunas
+da @tbl-estimacao.
+
+```{r}
+#| label: fig-raizes
+#| fig-cap: "Raízes inversas dos polinômios AR e MA"
+fig("q4_raizes")
 ```
 
 ```{r}
-tab("q2_decisao.csv")
-tab("q2_sazonal.csv")
+#| label: tbl-raizes
+#| tbl-cap: "Raízes dos polinômios característicos"
+t_raizes()
 ```
 
-A decisao adotada e `d = 1` e `D = 0`. A primeira diferenca do ponto medio da
-faixa-alvo e a transformacao usada nas etapas de identificacao.
-
-`D = 0` e resultado, nao omissao. Com `s = 7` justificado pela atividade de
-negociacao, cinco evidencias independentes convergem: os testes de raiz unitaria
-sazonal OCSB e Canova-Hansen indicam `D = 0`; a FAC da primeira diferenca fica
-dentro da banda de 95 por cento nos lags 7, 14 e 21; e impor `D = 1` piora o AIC e o
-BIC em cerca de 112 pontos. Diferenciar sazonalmente uma serie sem raiz sazonal
-introduz uma raiz MA nao-invertivel, exatamente o defeito que a Questao 6 examina.
-
-# Identificacao
-
-## Questao 3
+**Raízes e admissibilidade.** A @tbl-raizes reporta as raízes propriamente ditas, para
+as quais a condição de estacionariedade e de invertibilidade é módulo maior que um. A
+@fig-raizes desenha as inversas contra o círculo unitário, convenção gráfica usual: é
+admissível o ponto que cai dentro do círculo. O ARIMA(3,1,3) tem duas raízes MA de
+módulo 1,000034. Não se trata de uma margem apertada, e sim de raízes numericamente
+sobre o círculo unitário: o otimizador parou na fronteira da região admissível, não
+dentro dela. O polinômio não é invertível e o modelo está fora de competição.
 
 ```{r}
-fig("q3_fac_ficp.png", "FAC e FACP da primeira diferenca")
-tab("q3_candidatos.csv")
-tab("q3_lags_sazonais.csv")
+#| label: tbl-selecao
+#| tbl-cap: "Modelo escolhido por critério, com e sem a restrição de admissibilidade"
+t_selecao()
 ```
 
-A FAC da primeira diferenca corta abruptamente apos o lag 1, com um coeficiente
-negativo e forte, enquanto a FACP decai ao longo de varios lags. Esse par de padroes
-identifica um MA(1); o lag 1 isolado da FACP sustenta a leitura AR(1) concorrente.
-O coeficiente negativo no primeiro lag e o que a literatura de microestrutura atribui
-a oscilacao entre pontas de compra e venda, e nao a previsibilidade economica.
+**Ordem das operações.** Invertibilidade e estacionariedade são restrições de
+admissibilidade, não critérios de ajuste. Um modelo que as viola não é um modelo pior;
+é um modelo que não está no conjunto de escolha. Por isso o filtro se aplica antes do
+critério de informação, e não como ressalva posterior. A @tbl-selecao mostra a
+consequência: sem a restrição, o AIC elegeria o ARIMA(3,1,3) --- o melhor ajuste entre
+os candidatos e, simultaneamente, o único inadmissível. Entre os três admissíveis, AIC
+e BIC concordam no ARIMA(1,1,1), que é o modelo levado adiante. Relatar apenas o
+vencedor do AIC irrestrito produziria um modelo cuja representação autorregressiva
+infinita não existe.
 
-Dai os candidatos: ARIMA(0,1,1), a leitura canonica; ARIMA(1,1,0), a leitura
-autorregressiva; ARIMA(1,1,1), a mistura parcimoniosa. O ARIMA(3,1,3) entra como
-quarta especificacao, deliberadamente estendida, para ser confrontada com a restricao
-de admissibilidade da Questao 4 -- os lags 2, 3, 5, 6 e 8 da FACP sugerem estrutura
-mais rica, e e util verificar o que acontece quando o criterio de informacao a premia.
-Todos usam a mesma variavel dependente e a mesma amostra efetiva, condicao sem a qual
-a comparacao por AIC e BIC nao seria valida.
+**Convenção de $k$.** A contagem de parâmetros usada pelos critérios de informação foi
+verificada no próprio objeto ajustado, e não presumida: `attr(logLik(fit), "df")`
+devolve 3 para um modelo com 2 coeficientes, de modo que a variância residual estimada
+conta como parâmetro livre. O AIC recalculado à mão com essa convenção reproduz
+exatamente o valor reportado (`output/tables/q4_convencao_k.csv`).
 
-As defasagens sazonais foram inspecionadas explicitamente, com seis ciclos completos
-no grafico e a tabela acima cobrindo os lags 7, 14 e 21 e suas vizinhancas. Nenhuma
-fica fora da banda de 95 por cento. Por isso nenhum candidato leva componente
-sazonal: a ausencia de sazonalidade e uma conclusao apoiada em evidencia.
+# Diagnóstico
 
-# Estimacao e selecao
-
-## Questao 4
+## Questão 5
 
 ```{r}
-tab("q4_estimacao_modelos.csv")
-tab("q4_raizes.csv")
-fig("q4_raizes.png", "Raizes inversas e o circulo unitario")
-tab("q4_selecao.csv")
-tab("q4_convencao_k.csv")
+#| label: fig-diagnostico
+#| fig-cap: "Diagnóstico dos resíduos do modelo selecionado"
+fig("q5_diagnostico_residuos")
 ```
-
-Os modelos foram estimados por maxima verossimilhanca sobre a mesma amostra efetiva
-(`n = 180` apos a diferenciacao), o que torna AIC e BIC comparaveis entre eles.
-
-**Raizes e admissibilidade.** A tabela `q4_raizes.csv` traz as duas escalas para
-evitar a ambiguidade que a convencao costuma criar. A coluna `modulo` e a raiz do
-polinomio propriamente dita, e a condicao de estacionariedade e de invertibilidade e
-`modulo > 1`; a coluna `modulo_inverso` e o seu reciproco, para o qual a mesma
-condicao se le como valor menor que um. A figura desenha as raizes inversas contra o
-circulo unitario, convencao grafica usual: admissivel e o ponto que cai dentro do
-circulo.
-
-O ARIMA(3,1,3) tem duas raizes MA de modulo 1,000034. Nao se trata de uma margem
-apertada, e sim de raizes numericamente sobre o circulo unitario: o otimizador parou
-na fronteira da regiao admissivel, nao dentro dela. O polinomio nao e invertivel e o
-modelo esta fora de competicao.
-
-**Ordem das operacoes.** Invertibilidade e estacionariedade sao restricoes de
-admissibilidade, nao criterios de ajuste. Um modelo que as viola nao e um modelo pior;
-e um modelo que nao esta no conjunto de escolha. Por isso o filtro se aplica antes do
-criterio de informacao, e nao como ressalva posterior. Sem a restricao, o AIC elegeria
-o ARIMA(3,1,3) -- o melhor ajuste entre os candidatos e, simultaneamente, o unico
-inadmissivel. Entre os tres admissiveis, AIC e BIC concordam no ARIMA(1,1,1), que e o
-modelo levado adiante. A distincao importa: relatar apenas o vencedor do AIC
-irrestrito produziria um modelo cujas previsoes de longo prazo nao convergem e cuja
-representacao autorregressiva infinita nao existe.
-
-**Convencao de `k`.** A contagem de parametros usada pelos criterios de informacao foi
-verificada no proprio objeto ajustado, e nao presumida: `attr(logLik(fit), "df")`
-devolve 3 para um modelo com 2 coeficientes, de modo que a variancia residual estimada
-conta como parametro livre. O AIC recalculado a mao com essa convencao reproduz
-exatamente o valor reportado, como registra `q4_convencao_k.csv`.
-
-# Diagnostico
-
-## Questao 5
 
 ```{r}
-fig("q5_diagnostico_residuos.png", "Diagnostico dos residuos")
-tab("q5_diagnostico.csv")
-tab("q5_heterocedasticidade.csv")
-tab("q5_sobreacte.csv")
-tab("modelos_descartados.csv")
+#| label: tbl-diagnostico
+#| tbl-cap: "Testes de diagnóstico"
+t_diagnostico()
 ```
 
-O Ljung-Box foi calculado no lag 14 com correcao pelos graus de liberdade do modelo e
-nao rejeita a ausencia de autocorrelacao residual. O Jarque-Bera rejeita a normalidade
-com folga, resultado esperado numa serie cujas variacoes se concentram em poucos dias
-de noticia.
+O Ljung-Box, calculado no lag 14 com correção pelos graus de liberdade do modelo, não
+rejeita a ausência de autocorrelação residual (@tbl-diagnostico), o que a FAC do painel
+B da @fig-diagnostico confirma. O Jarque-Bera rejeita a normalidade com folga,
+resultado esperado numa série cujas variações se concentram em poucos dias de notícia
+--- os painéis C e D mostram o pico central e as caudas pesadas.
 
-**Heterocedasticidade: dois fenomenos distintos.** O ARCH-LM testa agrupamento de
-volatilidade, isto e, variancia alta seguida de variancia alta. Nao e o que caracteriza
-esta serie. A dispersao aqui cai porque o horizonte encurta: a cada dia que passa,
-resta menos incerteza a ser resolvida ate a reuniao. Isso e uma tendencia
-deterministica na variancia, e um teste desenhado para agrupamento pode nao detecta-la
-ainda que ela seja grande.
-
-Por isso o ARCH-LM aparece acompanhado de duas medidas diretas. A regressao de
-`log(diferenca ao quadrado)` sobre os dias que faltam para a reuniao tem inclinacao
-positiva e altamente significativa: quanto mais distante a reuniao, maior a dispersao.
-E a variancia da primeira metade da amostra supera a da segunda por um fator de 55,6,
-com o teste F rejeitando a igualdade. Os tres resultados sao complementares, e nao
+**Heterocedasticidade: dois fenômenos distintos.** O ARCH-LM testa agrupamento de
+volatilidade, isto é, variância alta seguida de variância alta. Não é o que
+caracteriza esta série. A dispersão aqui cai porque o horizonte encurta: a cada dia que
+passa, resta menos incerteza a ser resolvida até a reunião. Isso é uma tendência
+determinística na variância, e um teste desenhado para agrupamento pode não detectá-la
+ainda que ela seja grande. Por isso o ARCH-LM aparece acompanhado de duas medidas
+diretas, no segundo painel da @tbl-diagnostico: a regressão do logaritmo da diferença
+ao quadrado sobre os dias que faltam para a reunião tem inclinação positiva e
+altamente significativa, e a variância da primeira metade da amostra supera a da
+segunda por um fator de 55,6. Os três resultados são complementares, e não
 substitutos.
 
-**Modelos descartados.** A tabela `modelos_descartados.csv` registra o caminho
-percorrido, e nao apenas o destino: o ARIMA(3,1,3) sai por falha de invertibilidade na
-Questao 4, e as duas especificacoes de sobreajuste saem por nao melhorarem o ajuste.
-O sobreajuste deliberado acrescenta um termo AR e um termo MA ao modelo selecionado;
-como nenhum dos dois reduz o AIC, a especificacao escolhida e adequada nesse sentido.
-
-# Sobrediferenciacao
-
-## Questao 6
-
 ```{r}
-tab("q6_comparacao.csv")
-tab("q6_ma_raiz.csv")
-fig("q6_fac_residuos.png", "FAC dos residuos: modelo e sobrediferenciacao")
+#| label: tbl-sobreajuste
+#| tbl-cap: "Sobreajuste deliberado"
+t_sobreajuste()
 ```
 
-O modelo sobrediferenciado aumenta `d` em uma unidade, mantendo os demais termos do
-modelo selecionado. A comparacao de variancia residual, coeficiente MA e raiz permite
-avaliar o custo pratico de diferenciar em excesso.
-
-# Previsao fora da amostra
-
-## Questao 7
-
-As ultimas 24 observacoes foram reservadas para validacao. O primeiro esquema usa
-origem fixa e previsao multipassos; o segundo usa origem movel e previsao de um passo,
-com os coeficientes mantidos. Os benchmarks sao o passeio aleatorio e o ingenuo
-sazonal, este com periodo `s = 7` -- o periodo justificado na Questao 1 pela atividade
-de negociacao nos sete dias da semana, e confirmado como sem raiz sazonal na Questao 2.
-
 ```{r}
-fig("q7_previsao.png", "Previsao e intervalo de 95 por cento")
-tab("q7_metricas_previsao.csv")
-tab("q7_diebold_mariano.csv")
+#| label: tbl-descartados
+#| tbl-cap: "Modelos descartados"
+t_descartados()
 ```
 
-As metricas devem ser comparadas sem alterar o modelo para favorecer o resultado:
-RMSE, MAE e MAPE menores indicam melhor desempenho. Mas a comparacao de medias e
-observacao, nao inferencia; por isso o teste de Diebold-Mariano, com a correcao de
-amostra pequena de Harvey, Leybourne e Newbold, indispensavel com um horizonte de 24
-pontos. O teste e reportado apenas para o esquema de origem movel: o esquema de origem
-fixa tem uma unica origem, seus 24 erros formam um so caminho, e com `h = n` a propria
-correcao se anula.
+**Modelos descartados.** O sobreajuste deliberado da @tbl-sobreajuste acrescenta um
+termo AR e um termo MA ao modelo selecionado; nenhum dos termos adicionais é
+significativo e nenhum dos dois modelos reduz o AIC, de modo que a especificação
+escolhida é adequada nesse sentido. A @tbl-descartados registra o caminho percorrido, e
+não apenas o destino: o ARIMA(3,1,3) sai por falha de invertibilidade na Questão 4, e
+as duas especificações de sobreajuste saem por não melhorarem o ajuste.
 
-Contra o passeio aleatorio, o teste nao rejeita a igualdade de acuracia preditiva, sob
-perda quadratica e sob perda absoluta. E o resultado que a hipotese de martingale
-preve: se o preco de hoje ja incorpora toda a informacao disponivel, nenhum modelo
-linear deveria supera-lo de forma sistematica. Contra o ingenuo sazonal, o ARIMA vence
-com significancia, o que era esperado -- nao ha razao economica para a expectativa de
-hoje se parecer com a de sete dias atras mais do que com a de ontem.
+# Sobrediferenciação
 
-Uma ressalva de potencia. A janela de validacao e o trecho final da serie, justamente
-onde a incerteza ja foi quase toda resolvida e a variancia e minima. Os erros
-absolutos sao pequenos para todos os competidores, e o teste tem pouca potencia nesse
-regime. "Nao rejeitar" nao equivale a "sao equivalentes".
+## Questão 6
 
 ```{r}
-fig("q7_pit.png", "Transformada integral de probabilidade")
-tab("q7_cobertura.csv")
+#| label: tbl-sobrediferenciacao
+#| tbl-cap: "Modelo selecionado e sua versão sobrediferenciada"
+t_sobrediferenciacao()
 ```
 
-A cobertura empirica do intervalo de 95 por cento e a versao fraca de uma pergunta
-mais exigente: a densidade preditiva inteira esta correta? A transformada integral de
-probabilidade responde. Sob densidades corretas as PIT seriam uniformes em `(0,1)`; o
-teste de Kolmogorov-Smirnov rejeita a uniformidade nos dois esquemas, e o histograma
-mostra concentracao central. As densidades preditivas sao largas demais -- o modelo
-acerta o centro e exagera a incerteza, coerente com uma cobertura acima da nominal.
+```{r}
+#| label: fig-sobrediferenciacao
+#| fig-cap: "Autocorrelação dos resíduos: modelo selecionado e sobrediferenciado"
+fig("q6_fac_residuos")
+```
 
-Os precos sao probabilidades risco-neutras, sob a medida Q, e podem incorporar
-premios de risco. Portanto, o confronto com o passeio aleatorio nao deve ser lido
-como teste isolado de eficiencia sob a medida fisica P.
+O modelo sobrediferenciado aumenta $d$ em uma unidade e mantém os demais termos do
+modelo selecionado. Os sinais práticos aparecem juntos na @tbl-sobrediferenciacao: o
+coeficiente MA vai a $-1$, a raiz do polinômio MA cai sobre o círculo unitário e a
+variância residual aumenta. A @fig-sobrediferenciacao mostra o terceiro sinal:
+surge autocorrelação negativa significativa nos resíduos, que o modelo corretamente
+diferenciado não tem.
 
-<!-- A Questao 8 e manuscrita, conforme as normas da lista. -->
+# Previsão fora da amostra
+
+## Questão 7
+
+As últimas 24 observações foram reservadas para validação. O primeiro esquema usa
+origem fixa e previsão de múltiplos passos; o segundo usa origem móvel e previsão de um
+passo, com os coeficientes mantidos. Os benchmarks são o passeio aleatório e o ingênuo
+sazonal, este com período $s = 7$ --- o período justificado na Questão 1 pela atividade
+de negociação nos sete dias da semana, e confirmado como sem raiz sazonal na Questão 2.
+
+```{r}
+#| label: fig-previsao
+#| fig-cap: "Previsão fora da amostra contra os benchmarks"
+fig("q7_previsao")
+```
+
+```{r}
+#| label: tbl-metricas
+#| tbl-cap: "Erros de previsão na janela de validação"
+t_metricas()
+```
+
+As métricas da @tbl-metricas devem ser comparadas sem alterar o modelo para favorecer
+o resultado. Mas a comparação de médias é observação, não inferência; por isso o teste
+de Diebold-Mariano da @tbl-dm, com a correção de amostra pequena de Harvey, Leybourne
+e Newbold, indispensável com um horizonte de 24 pontos.
+
+```{r}
+#| label: tbl-dm
+#| tbl-cap: "Testes de Diebold-Mariano"
+t_dm()
+```
+
+```{r}
+#| label: fig-perda
+#| fig-cap: "Diferencial de perda acumulado contra o passeio aleatório"
+fig("q7_perda_acumulada")
+```
+
+Contra o passeio aleatório, o teste não rejeita a igualdade de acurácia preditiva, sob
+perda quadrática e sob perda absoluta. É o resultado que a hipótese de martingale
+prevê: se o preço de hoje já incorpora toda a informação disponível, nenhum modelo
+linear deveria superá-lo de forma sistemática. A @fig-perda mostra onde a diferença se
+acumula ao longo da janela. Contra o ingênuo sazonal, o ARIMA vence com significância,
+o que era esperado --- não há razão econômica para a expectativa de hoje se parecer
+com a de sete dias atrás mais do que com a de ontem.
+
+Uma ressalva de potência. A janela de validação é o trecho final da série, justamente
+onde a incerteza já foi quase toda resolvida e a variância é mínima. Os erros absolutos
+são pequenos para todos os competidores, e o teste tem pouca potência nesse regime.
+"Não rejeitar" não equivale a "são equivalentes".
+
+```{r}
+#| label: fig-pit
+#| fig-cap: "Transformada integral de probabilidade, Esquema 2"
+fig("q7_pit")
+```
+
+```{r}
+#| label: tbl-cobertura
+#| tbl-cap: "Calibração das densidades preditivas"
+t_cobertura()
+```
+
+A cobertura empírica do intervalo de 95% é a versão fraca de uma pergunta mais
+exigente: a densidade preditiva inteira está correta? A transformada integral de
+probabilidade responde (@fig-pit). Sob densidades corretas as PIT seriam uniformes em
+$(0, 1)$; o teste de Kolmogorov-Smirnov rejeita a uniformidade nos dois esquemas
+(@tbl-cobertura), e o histograma mostra concentração central. As densidades preditivas
+são largas demais --- o modelo acerta o centro e exagera a incerteza, coerente com uma
+cobertura acima da nominal. A razão é a mesma da ressalva de potência: o modelo foi
+estimado numa amostra que inclui a turbulência de março, e sua variância residual é
+grande demais para o trecho calmo em que é avaliado.
+
+Os preços são probabilidades risco-neutras, sob a medida Q, e podem incorporar prêmios
+de risco. Portanto, o confronto com o passeio aleatório não deve ser lido como teste
+isolado de eficiência sob a medida física P.
+
+<!-- A Questão 8 é manuscrita, conforme as normas da lista. -->

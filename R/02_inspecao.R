@@ -8,18 +8,32 @@ serie <- read_series()
 serie$observacao <- seq_len(nrow(serie))
 serie$diferenca <- c(NA_real_, diff(serie$taxa_esperada))
 
-p_level <- ggplot2::ggplot(serie, ggplot2::aes(date, taxa_esperada)) +
-	ggplot2::geom_line(color = "#16425B") +
-	ggplot2::labs(title = "Ponto medio da faixa-alvo do Fed", x = NULL, y = "%") +
-	ggplot2::theme_minimal()
-save_gg(p_level, "q1_nivel.png")
+library(ggplot2)
+source("R/99_viz.R")
 
-p_diff <- ggplot2::ggplot(serie[-1, ], ggplot2::aes(date, diferenca)) +
-	ggplot2::geom_hline(yintercept = 0, color = "grey60") +
-	ggplot2::geom_line(color = "#C44536") +
-	ggplot2::labs(title = "Primeira diferença do ponto medio da faixa-alvo", x = NULL, y = "pontos percentuais") +
-	ggplot2::theme_minimal()
-save_gg(p_diff, "q1_diferenca.png")
+# Figura da Q1: dois paineis empilhados com o MESMO eixo de datas, como nos FEDS.
+# Serie unica por painel -> cor de tinta, sem legenda; o titulo do painel diz o
+# que esta plotado. A diferenca e desenhada em hastes a partir do zero, nao em
+# linha: e uma sequencia de choques, e a linha sugeriria continuidade entre eles.
+eixo_datas <- scale_x_date(date_breaks = "1 month", date_labels = "%b\n%Y",
+                           expand = expansion(mult = 0.01))
+p_level <- ggplot(serie, aes(date, taxa_esperada)) +
+	geom_line(colour = COR$tinta, linewidth = 0.5) +
+	eixo_datas + scale_y_continuous(labels = escala_br(2)) +
+	labs(title = "A. Ponto médio implícito da faixa-alvo", x = NULL, y = "% a.a.") +
+	theme_feds() + theme(axis.text.x = element_blank())
+p_diff <- ggplot(serie[-1, ], aes(date, diferenca * 100)) +
+	geom_hline(yintercept = 0, colour = COR$tinta, linewidth = 0.3) +
+	geom_segment(aes(xend = date, yend = 0), colour = COR$serie_1, linewidth = 0.35) +
+	eixo_datas + scale_y_continuous(labels = escala_br(0)) +
+	labs(title = "B. Primeira diferença", x = NULL, y = "Pontos-base") +
+	theme_feds()
+p_q1 <- patchwork::wrap_plots(p_level, p_diff, ncol = 1, heights = c(1.15, 1)) +
+	patchwork::plot_annotation(
+		caption = nota_fonte(sprintf("Contrato %s, %d observações diárias.",
+		                             serie$event_ticker[1], nrow(serie))),
+		theme = theme_feds())
+salvar_fig(p_q1, "q1_serie", altura = 4.4)
 
 resumo <- data.frame(
 	observacoes = nrow(serie), inicio = min(serie$date), fim = max(serie$date),

@@ -18,6 +18,7 @@ fits <- lapply(specs, function(sp)
   fit_candidate(x, sp$order, seasonal = sp$seasonal, period = sp$period))
 estimacao <- do.call(rbind, Map(model_row, fits, names(fits)))
 write_table(estimacao, "q4_estimacao_modelos.csv")
+write_table(do.call(rbind, Map(coef_long, fits, names(fits))), "q4_coeficientes.csv")
 
 ## ---- Q4(f): raizes e admissibilidade -----------------------------------------
 raizes <- do.call(rbind, Map(raizes_modelo, fits, names(fits)))
@@ -85,8 +86,8 @@ for (m in inadmissiveis) {
   r <- raizes[raizes$modelo == m & !raizes$admissivel, ]
   registrar_descarte(
     modelo = m, etapa = "Q4(f) admissibilidade",
-    motivo = if (any(r$tipo_raiz == "MA")) "polinomio MA nao-invertivel" else "polinomio AR nao-estacionario",
-    evidencia = sprintf("raizes %s com modulo %s (limiar 1 + %s)",
+    motivo = if (any(r$tipo_raiz == "MA")) "polinômio MA não-invertível" else "polinômio AR não-estacionário",
+    evidencia = sprintf("raízes %s com módulo %s (limiar 1 + %s)",
                         paste(unique(r$tipo_raiz), collapse = "/"),
                         paste(sprintf("%.6f", r$modulo), collapse = "; "),
                         format(TOL_RAIZ, scientific = FALSE)),
@@ -128,22 +129,41 @@ write_table(convencao, "q4_convencao_k.csv")
 # usual (forecast::autoplot) e mantem o desenho legivel quando uma raiz e grande.
 # Admissivel = ponto DENTRO do circulo. A tabela q4_raizes.csv traz as duas
 # escalas, para que o texto possa citar |raiz| > 1 sem ambiguidade.
-png(file.path(OUT_FIG, "q4_raizes.png"), width = 1000, height = 800, res = 140)
-plot(NA, xlim = c(-1.5, 1.5), ylim = c(-1.5, 1.5), asp = 1,
-     xlab = "Parte real", ylab = "Parte imaginaria",
-     main = "Raizes inversas dos polinomios")
-symbols(0, 0, circles = 1, inches = FALSE, add = TRUE, fg = "grey60")
-abline(h = 0, v = 0, col = "grey85", lty = 3)
-inv_re <- raizes$parte_real / raizes$modulo^2
-inv_im <- -raizes$parte_imaginaria / raizes$modulo^2
-cores <- as.integer(factor(raizes$modelo, levels = names(fits)))
-points(inv_re, inv_im, pch = ifelse(raizes$admissivel, 19, 4),
-       col = cores, cex = 1.2, lwd = 2)
-legend("topright", legend = names(fits), col = seq_along(fits), pch = 19, bty = "n", cex = 0.8)
-legend("bottomright", legend = c("admissivel", "inadmissivel"), pch = c(19, 4),
-       col = "grey30", bty = "n", cex = 0.8)
-mtext("Dentro do circulo = raiz de modulo > 1 = admissivel", side = 1, line = 3.6, cex = 0.75)
-dev.off()
+# Pequenos multiplos, um painel por candidato: sobrepor quatro modelos num circulo
+# so obrigaria o leitor a casar cores. Forma = tipo de raiz; cor = admissibilidade.
+library(ggplot2)
+source("R/99_viz.R")
+rz <- raizes[!is.na(raizes$modulo), ]
+rz$inv_re <- rz$parte_real / rz$modulo^2
+rz$inv_im <- -rz$parte_imaginaria / rz$modulo^2
+rz$modelo <- factor(rz$modelo, levels = names(fits))
+rz$status <- factor(ifelse(rz$admissivel, "Admissível", "Inadmissível"),
+                    levels = c("Admissível", "Inadmissível"))
+circulo <- data.frame(x = cos(seq(0, 2 * pi, length.out = 361)),
+                      y = sin(seq(0, 2 * pi, length.out = 361)))
+p_raizes <- ggplot(rz, aes(inv_re, inv_im)) +
+  geom_hline(yintercept = 0, colour = COR$grade, linewidth = 0.3) +
+  geom_vline(xintercept = 0, colour = COR$grade, linewidth = 0.3) +
+  geom_path(data = circulo, aes(x, y), colour = COR$tinta, linewidth = 0.35) +
+  geom_point(aes(shape = tipo_raiz, fill = status), size = 2.3, stroke = 0.4,
+             colour = "white") +
+  scale_shape_manual(values = c(AR = 21, MA = 24), name = NULL) +
+  scale_fill_manual(values = c("Admissível" = COR$serie_1, "Inadmissível" = COR$serie_2),
+                    name = NULL, drop = FALSE) +
+  guides(fill = guide_legend(override.aes = list(shape = 21, size = 2.6)),
+         shape = guide_legend(override.aes = list(fill = COR$tinta_fraca, size = 2.6))) +
+  scale_x_continuous(limits = c(-1.15, 1.15), breaks = c(-1, 0, 1), labels = escala_br(0)) +
+  scale_y_continuous(limits = c(-1.15, 1.15), breaks = c(-1, 0, 1), labels = escala_br(0)) +
+  coord_equal() +
+  facet_wrap(~modelo, nrow = 1) +
+  labs(x = "Parte real", y = "Parte imaginária",
+       caption = nota_fonte(paste0(
+         "Raízes inversas dos polinômios AR (círculos) e MA (triângulos). É admissível ",
+         "a raiz inversa dentro do círculo unitário, com folga de 0,001."))) +
+  theme_feds() +
+  theme(legend.key.width = unit(0.35, "cm"), legend.spacing.x = unit(0.1, "cm"),
+        legend.box.spacing = unit(0.1, "cm"))
+salvar_fig(p_raizes, "q4_raizes", altura = 2.6)
 
 cat("\n=== Q4 estimacao ===\n")
 print(estimacao[, c("model", "sigma2", "AIC", "BIC", "nobs", "admissivel")], row.names = FALSE)

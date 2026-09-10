@@ -14,13 +14,14 @@ facp <- stats::pacf(dif1, lag.max = LAG_MAX, plot = FALSE)
 fac_v  <- as.numeric(fac$acf)[-1]      # descarta o lag 0
 facp_v <- as.numeric(facp$acf)
 
-png(file.path(OUT_FIG, "q3_fac_ficp.png"), width = 1400, height = 700, res = 140)
-par(mfrow = c(1, 2))
-acf(dif1, lag.max = LAG_MAX, main = "FAC da primeira diferenca")
-abline(v = s * (1:6), col = "#c0392b", lty = 3)
-pacf(dif1, lag.max = LAG_MAX, main = "FACP da primeira diferenca")
-abline(v = s * (1:6), col = "#c0392b", lty = 3)
-dev.off()
+library(ggplot2)
+source("R/99_viz.R")
+p_fac <- grafico_fac(dados_fac(dif1, LAG_MAX), sazonal = s) +
+  labs(caption = nota_fonte(paste0(
+    "Primeira diferença da série. Faixa sombreada: banda de 95% (±1,96/√n); em ",
+    "azul, as defasagens fora dela. Linhas verticais finas: múltiplos do período ",
+    "sazonal de 7 dias.")))
+salvar_fig(p_fac, "q3_fac_ficp", altura = 2.9)
 
 ## ---- Q3(b): inspecao explicita dos lags sazonais -----------------------------
 # A lista exige que a sazonalidade seja examinada, nao dispensada. Com s = 7
@@ -65,18 +66,18 @@ candidatos <- data.frame(
   p = c(0L, 1L, 1L, 3L), d = 1L, q = c(1L, 0L, 1L, 3L),
   P = 0L, D = 0L, Q = 0L, periodo_sazonal = s,
   justificativa = c(
-    "Leitura canonica: a FAC corta apos o lag 1 e a FACP decai. E a especificacao que o par de graficos indica primeiro.",
-    "Leitura AR concorrente: o lag 1 da FACP e o maior em modulo; testa se a persistencia se explica por um unico termo autorregressivo.",
-    "Mistura parcimoniosa: acomoda simultaneamente persistencia e choque quando FAC e FACP nao separam com nitidez.",
-    "Especificacao estendida, incluida para SER TESTADA contra a restricao de admissibilidade da Q4(f): os lags 2, 3, 5, 6 e 8 da FACP sugerem estrutura mais rica, e o AIC tende a premia-la."
+    "Leitura canônica: a FAC corta após o lag 1 e a FACP decai. É a especificação que o par de gráficos indica primeiro.",
+    "Leitura AR concorrente: o lag 1 da FACP é o maior em módulo; testa se a persistência se explica por um único termo autorregressivo.",
+    "Mistura parcimoniosa: acomoda simultaneamente persistência e choque quando FAC e FACP não separam com nitidez.",
+    "Especificação estendida, incluída para ser testada contra a restrição de admissibilidade da Q4(f): os lags 2, 3, 5, 6 e 8 da FACP sugerem estrutura mais rica, e o AIC tende a premiá-la."
   ),
   evidencia = c(
     sprintf("FAC significativa nos lags %s; FACP decai ao longo de %s.",
             paste(fac_sig, collapse = ", "), paste(facp_sig, collapse = ", ")),
-    sprintf("FACP no lag 1 = %.4f, fora da banda de 95%% (+/-%.4f).", facp_v[1], banda),
+    sprintf("FACP no lag 1 = %.4f, fora da banda de 95%% (±%.4f).", facp_v[1], banda),
     sprintf("FAC no lag 1 = %.4f e FACP no lag 1 = %.4f, ambas fora da banda.",
             fac_v[1], facp_v[1]),
-    sprintf("FACP fora da banda tambem nos lags %s.",
+    sprintf("FACP fora da banda também nos lags %s.",
             paste(setdiff(facp_sig, 1L), collapse = ", "))
   ),
   stringsAsFactors = FALSE

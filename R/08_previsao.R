@@ -150,9 +150,9 @@ quebrar <- function(txt, largura = 105) paste(strwrap(txt, width = largura), col
 # Identidade nao fica so na cor -- cada serie tem tambem seu tipo de linha.
 longo <- rbind(
   data.frame(date = datas, valor = fixed,          serie = "ARIMA"),
-  data.frame(date = datas, valor = rw_fixed,       serie = "Passeio aleatorio"),
-  data.frame(date = datas, valor = seasonal_fixed, serie = "Sazonal ingenuo"))
-longo$serie <- factor(longo$serie, levels = c("ARIMA", "Passeio aleatorio", "Sazonal ingenuo"))
+  data.frame(date = datas, valor = rw_fixed,       serie = "Passeio aleatório"),
+  data.frame(date = datas, valor = seasonal_fixed, serie = "Sazonal ingênuo"))
+longo$serie <- factor(longo$serie, levels = c("ARIMA", "Passeio aleatório", "Sazonal ingênuo"))
 obs_df <- rbind(hist_df, data.frame(date = datas, y = actual))
 
 p1 <- ggplot() +
@@ -163,27 +163,30 @@ p1 <- ggplot() +
   geom_vline(xintercept = serie$date[T0], colour = COR$tinta_fraca,
              linewidth = 0.3, linetype = "13") +
   annotate("text", x = serie$date[T0], y = max(hi, na.rm = TRUE),
-           label = "  inicio da validacao", hjust = 0, vjust = 1.4,
+           label = "  início da validação", hjust = 0, vjust = 1.4,
            size = 2.9, colour = COR$tinta_fraca) +
   annotate("text", x = min(hist_df$date), y = max(hi, na.rm = TRUE),
            label = "Observado", hjust = 0, vjust = 1.4, size = 3,
            colour = COR$tinta, fontface = "bold") +
   scale_colour_manual(values = c("ARIMA" = COR$serie_1,
-                                 "Passeio aleatorio" = COR$serie_2,
-                                 "Sazonal ingenuo" = COR$serie_3)) +
+                                 "Passeio aleatório" = COR$serie_2,
+                                 "Sazonal ingênuo" = COR$serie_3)) +
   scale_linetype_manual(values = c("ARIMA" = "solid",
-                                   "Passeio aleatorio" = "42",
-                                   "Sazonal ingenuo" = "22")) +
+                                   "Passeio aleatório" = "42",
+                                   "Sazonal ingênuo" = "22")) +
+  scale_x_date(date_breaks = "2 weeks", date_labels = "%d/%m") +
   scale_y_continuous(labels = escala_br(2)) +
-  labs(title = sprintf("Figura 1 -- Previsao fora da amostra: %s contra benchmarks ingenuos", rotulo),
-       subtitle = sprintf("Esquema 1 (origem fixa, %d passos). Faixa azul: intervalo de previsao de 95%%.", H),
-       x = NULL, y = "Taxa esperada implicita (% a.a.)",
-       caption = quebrar(nota_fonte(sprintf(
-         "Cobertura empirica do intervalo: %s%% contra 95%% nominais -- as densidades preditivas sao largas demais.",
-         fmt_br(100 * cobertura, 1))))) +
+  # Titulo e subtitulo NAO ficam dentro da imagem: no relatorio a figura recebe
+  # numero e titulo pelo Quarto, acima dela, como nos FEDS. Na imagem fica so a
+  # nota de leitura e a fonte.
+  labs(x = NULL, y = "% a.a.",
+       caption = nota_fonte(sprintf(paste0(
+         "Esquema 1: origem fixa em %s, previsões de 1 a %d passos. Faixa sombreada: ",
+         "intervalo de previsão de 95%%, cuja cobertura empírica foi de %s%%."),
+         format(serie$date[T0], "%d/%m/%Y"), H, fmt_br(100 * cobertura, 1)))) +
   theme_feds() +
   theme(legend.key.width = unit(1.4, "cm"))
-salvar_fig(p1, "q7_previsao.png", 7.8, 4.6)
+salvar_fig(p1, "q7_previsao", altura = 3.6)
 
 pit_df <- data.frame(pit = pit_movel)
 nbin <- 6L; esperado <- H / nbin
@@ -195,36 +198,41 @@ p2 <- ggplot(pit_df, aes(pit)) +
   geom_histogram(breaks = seq(0, 1, length.out = nbin + 1), fill = COR$serie_1,
                  colour = "white", linewidth = 0.6) +
   scale_x_continuous(labels = escala_br(1), breaks = seq(0, 1, 0.25)) +
-  labs(title = "Figura 2 -- Transformada integral de probabilidade (PIT)",
-       subtitle = paste0("Esquema 2 (um passo a frente). Sob densidades preditivas corretas, ",
-                         "as PIT sao U(0,1).\nFaixa cinza: banda de 95% para a contagem por bin; ",
-                         "tracejado: contagem esperada."),
-       x = "PIT", y = "Frequencia",
-       caption = quebrar(nota_fonte(sprintf(
-         "Kolmogorov-Smirnov contra a uniforme: D = %s, p = %s. Arcabouco de Diebold, Gunther e Tay (1998).",
-         fmt_br(ks_m$statistic, 3), fmt_br(ks_m$p.value, 4))))) +
+  labs(x = "PIT", y = "Frequência",
+       caption = nota_fonte(sprintf(paste0(
+         "Esquema 2 (um passo à frente). Sob densidades preditivas corretas, as PIT são ",
+         "U(0,1). Faixa cinza: banda de 95%% para a contagem por classe; linha: contagem ",
+         "esperada. Kolmogorov-Smirnov contra a uniforme: D = %s, p = %s."),
+         fmt_br(ks_m$statistic, 3), fmt_br(ks_m$p.value, 4)))) +
   theme_feds()
-salvar_fig(p2, "q7_pit.png", 6.4, 4.2)
+salvar_fig(p2, "q7_pit", altura = 3.0)
 
 # Perda acumulada: mostra ONDE a vantagem aparece, nao so o resultado agregado
 dif_df <- data.frame(
   h = rep(seq_len(H), 2),
-  cum = c(cumsum(erros$movel_arima^2 - erros$movel_rw^2),
-          cumsum(erros$fixa_arima^2  - erros$fixa_rw^2)),
-  esquema = rep(c("Origem movel, 1 passo", "Origem fixa, 24 passos"), each = H))
-p3 <- ggplot(dif_df, aes(h, cum, colour = esquema)) +
+  # em pontos-base ao quadrado: a serie esta em p.p., e 1 p.p.^2 = 10^4 p.b.^2
+  cum = 1e4 * c(cumsum(erros$movel_arima^2 - erros$movel_rw^2),
+                cumsum(erros$fixa_arima^2  - erros$fixa_rw^2)),
+  esquema = rep(c("Origem móvel, 1 passo", "Origem fixa, 24 passos"), each = H))
+# Cores NEUTRAS: aqui as series sao esquemas, nao modelos. Azul e vermelho ja
+# significam ARIMA e passeio aleatorio na figura anterior; reusa-los para outra
+# coisa quebraria a regra de que a cor segue a entidade.
+p3 <- ggplot(dif_df, aes(h, cum, colour = esquema, linetype = esquema)) +
   geom_hline(yintercept = 0, colour = COR$tinta_fraca, linewidth = 0.35) +
-  geom_line(linewidth = 0.8) +
-  scale_colour_manual(values = c("Origem movel, 1 passo" = COR$serie_1,
-                                 "Origem fixa, 24 passos" = COR$serie_2)) +
-  scale_y_continuous(labels = escala_br(4)) +
-  labs(title = "Figura 3 -- Diferencial de perda acumulado contra o passeio aleatorio",
-       subtitle = paste0("Erro quadratico do ", rotulo, " menos o do passeio aleatorio. ",
-                         "Abaixo de zero: o modelo acumula\nvantagem; acima: o benchmark vence."),
-       x = "Passo do horizonte de validacao", y = "Diferencial acumulado",
-       caption = quebrar(nota_fonte("Estatistica de Diebold-Mariano em output/tables/q7_diebold_mariano.csv."))) +
+  geom_line(linewidth = 0.7) +
+  scale_colour_manual(values = c("Origem móvel, 1 passo" = COR$tinta,
+                                 "Origem fixa, 24 passos" = COR$tinta_fraca)) +
+  scale_linetype_manual(values = c("Origem móvel, 1 passo" = "solid",
+                                   "Origem fixa, 24 passos" = "42")) +
+  scale_x_continuous(breaks = c(1, seq(4, H, 4))) +
+  scale_y_continuous(labels = escala_br(0)) +
+  labs(x = "Passo do horizonte de validação", y = "Diferencial acumulado (p.b.²)",
+       caption = nota_fonte(paste0(
+         "Erro quadrático do ", rotulo, " menos o do passeio aleatório, acumulado ao ",
+         "longo da janela de validação. Abaixo de zero, o modelo acumula vantagem; ",
+         "acima, o benchmark."))) +
   theme_feds()
-salvar_fig(p3, "q7_perda_acumulada.png", 7.0, 4.0)
+salvar_fig(p3, "q7_perda_acumulada", altura = 3.0)
 
 cat("\n=== Q7(f) Diebold-Mariano ===\n"); print(dm_tab, row.names = FALSE)
 cat(sprintf("\n=== Q7(g) cobertura = %s%% (nominal 95%%) ===\n", fmt_br(100 * cobertura, 1)))

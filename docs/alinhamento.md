@@ -265,9 +265,9 @@ transforma um item de checklist em argumento.
 
 | Item | Situação |
 |---|---|
-| Q2(a) | **ABERTA.** A coluna `lags` reporta **12**, que é o `max_lag`, não a defasagem escolhida pelo AIC. A lista pede o número de defasagens **e** o critério. Extrair de `fit@testreg` o lag efetivo. |
+| Q2(a) | **RESOLVIDA (2026-09-10).** A coluna `lags` passou a reportar a defasagem escolhida pelo AIC (termos `z.diff.lag` que sobram em `fit@testreg`: 11 em nível, 7–10 na diferença), não o máximo de 12. A mesma revisão corrigiu dois bugs em `run_unit_root_tests()`: os valores críticos eram lidos por posição, mas o `urca` ordena as colunas de forma diferente no ADF/PP e no KPSS (a coluna `critical_10` guardava o valor de 1%); e o p-valor aproximado tratava o KPSS como teste de cauda esquerda, invertendo-o — o KPSS do nível saía com p = 0,10 quando rejeita a 1%. |
 | Q2(c) | **RESOLVIDA (2026-09-09).** `q2_sazonal.csv` reúne OCSB, Canova-Hansen, a FAC nos lags 7/14/21 contra a banda de 95% e a comparação AIC/BIC entre `D = 0` e `D = 1`. As cinco evidências convergem para `D = 0`; impor `D = 1` piora AIC e BIC em ~112 pontos. |
-| Q2(d) | **ABERTA.** Não abordado. E os testes **são ambíguos**: ADF com tendência dá −3,19 (não rejeita a 5%, VC −3,43) enquanto KPSS `tau` dá 0,150 (rejeita a 5%, VC 0,146). A lista pede explicitamente que a ambiguidade seja explicitada e a escolha justificada. |
+| Q2(d) | **TRATADA NO TEXTO (2026-09-10).** Com os valores críticos corrigidos, a ambiguidade em nível é: ADF com constante (−3,66) e PP com tendência (−6,63) rejeitam a raiz unitária; ADF sem termos e com tendência não rejeitam; o KPSS rejeita a estacionariedade nas duas especificações. O relatório explicita isso, atribui a ambiguidade à quebra de variância em março e justifica $d = 1$ pela concordância dos seis testes na diferença. (Os números citados antes aqui, −3,19 e 0,150, eram do contrato 26DEC.) |
 | Q4(d) | **RESOLVIDA (2026-09-09).** `q4_convencao_k.csv` verifica no próprio objeto: `attr(logLik(fit), "df")` = 3 para 2 coeficientes, e o AIC recalculado com `k = 3` reproduz o reportado. σ̂²ₐ **conta** como parâmetro. |
 | Q4(e) | **RESOLVIDA (2026-09-09).** `q4_selecao.csv` reporta os vencedores por AIC e por BIC, com e sem a restrição de admissibilidade, e sinaliza se divergem. |
 | Q4(f) | **RESOLVIDA (2026-09-09).** A restrição de admissibilidade passou a ser aplicada **antes** do critério de informação. `q4_raizes.csv` traz `modulo` e `modulo_inverso` com a coluna `admissivel` correta — antes gravava a raiz inversa sob um rótulo que exigia `> 1`, e saía `FALSE` em todas as linhas. |
@@ -531,15 +531,15 @@ Cobertura do IC de 95%: **100%**, exatamente como previsto neste documento.
 
 ## Ainda pendente
 
-*Atualizado em 2026-09-09. A lista original desta seção está resolvida, salvo o item
-Q2(d); ver a tabela "Pendências da lista na rodada atual" para o estado por item.*
+*Atualizado em 2026-09-10. A lista original desta seção está resolvida; ver a tabela
+"Pendências da lista na rodada atual" para o estado por item.*
 
 - ~~`output/tables/modelos_descartados.csv` — **exigido pela Q5(d)**, não existe.~~
   Gerado pelo `05_estimacao.R` e completado pelo `06_diagnostico.R`.
 - ~~Q2(c): `D = 0` continua justificado por *"não foi imposta diferença sazonal"*.~~
   Decidido com cinco evidências em `q2_sazonal.csv`.
-- **Q2(d): não abordada.** Continua sendo a única pendência da Questão 2 — a
-  ambiguidade entre ADF com tendência e KPSS `tau` precisa ser explicitada no texto.
+- ~~Q2(d): não abordada.~~ O relatório explicita a evidência mista em nível e
+  justifica $d = 1$ pela concordância dos testes na primeira diferença.
 - ~~Q4(d): convenção de contagem de `k` não documentada na saída.~~ Verificada
   programaticamente em `q4_convencao_k.csv`.
 - ~~Q4(e): `q4_selecao.csv` reporta só o AIC, escondendo a divergência.~~ Agora
