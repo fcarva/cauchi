@@ -224,11 +224,37 @@ momentos <- probs |>
 ## ---- painel -> serie unica ----
 serie <- switch(MODO,
   "contrato_unico" = {
-    escolhida <- momentos |>
-      dplyr::count(event_ticker, sort = TRUE) |>
-      dplyr::slice(1) |>
-      dplyr::pull(event_ticker)
-    message("Reuniao escolhida (mais dias de historico): ", escolhida)
+    # SELECAO POR LIQUIDEZ, nao por numero de dias.
+    # Kagan & Baiocchi (2026) mostram que a calibracao melhora quase
+    # monotonicamente com o volume negociado e com o numero de traders unicos.
+    # Escolher o contrato com mais DIAS seleciona tipicamente a reuniao mais
+    # distante -- que e a mais rala -- e maximiza exatamente o ruido de
+    # microestrutura que o artigo documenta. Entre os contratos que cumprem o
+    # minimo de observacoes, pega-se o de MAIOR volume.
+    forcado <- Sys.getenv("KALSHI_EVENTO", "")
+    liq <- painel |>
+      dplyr::group_by(event_ticker) |>
+      dplyr::summarise(volume = sum(volume, na.rm = TRUE),
+                       dias   = dplyr::n_distinct(date),
+                       ate    = max(date), .groups = "drop")
+    eleg <- liq |> dplyr::filter(dias >= MIN_OBS)
+    if (!nrow(eleg)) eleg <- liq
+    escolhida <- if (nzchar(forcado)) forcado else
+      eleg |> dplyr::arrange(dplyr::desc(volume)) |> dplyr::slice(1) |>
+        dplyr::pull(event_ticker)
+
+    info <- liq[liq$event_ticker == escolhida, ]
+    message("Reuniao escolhida (maior volume): ", escolhida,
+            " | volume ", format(round(info$volume), big.mark = "."),
+            " | ", info$dias, " dias")
+    # Um contrato ainda VIVO nao tem expiry verdadeiro: expiry = max(date) e
+    # apenas a data do snapshot. A serie entao nao termina na resolucao, e a
+    # queda de variancia com a aproximacao da reuniao -- o fenomeno central do
+    # artigo -- fica fora da amostra.
+    if (info$ate >= max(painel$date))
+      warning("Contrato '", escolhida, "' ainda nao resolveu: a serie termina na ",
+              "data do snapshot, nao na reuniao. A janela de validacao da Q7 NAO ",
+              "sera o periodo de resolucao da incerteza.", call. = FALSE)
     momentos |> dplyr::filter(event_ticker == escolhida)
   },
   "front" = {

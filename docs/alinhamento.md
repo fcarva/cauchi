@@ -184,3 +184,87 @@ diferente é estimado sobre uma série *diferente* (nível vs. diferença) e com
 observação a menos. A comparação direta é **inválida**. Se precisar comparar entre
 ordens de integração, compare fora da amostra (Q7) ou reestime todos sobre a mesma
 amostra efetiva, descartando as observações iniciais do candidato com maior `d`.
+
+---
+
+# Auditoria da primeira rodada completa
+
+Rodada com dados reais (snapshot de 2026-09-08) e resultados em `output/`.
+Reproduza a auditoria com `Rscript tests/audita_contratos.R`.
+
+## Achado principal: o contrato escolhido era o errado
+
+O `01_build_series.R` escolhia a reunião com **mais dias de histórico**. Isso
+selecionou o `KXFED-26DEC` — que é justamente o contrato **mais raso da mesa**:
+
+| Contrato | Resolvido? | Volume | dp da diferença | Maior salto | AC(1) |
+|---|---|---:|---:|---:|---:|
+| **KXFED-26JUL** | **sim** | **3.261.206** | **5,4 bps** | **31 bps** | **−0,115** |
+| KXFED-26SEP | não | 1.637.343 | 8,8 bps | 48 bps | −0,104 |
+| KXFED-27APR | não | 148.655 | 18,1 bps | 66 bps | −0,287 |
+| KXFED-26DEC *(usado)* | não | 129.707 | 8,3 bps | 46 bps | −0,266 |
+| KXFED-26OCT | não | 51.271 | 8,2 bps | 56 bps | −0,358 |
+| KXFED-27JAN | não | 49.958 | 15,0 bps | 70 bps | −0,409 |
+| KXFED-27MAR | não | 35.094 | 13,5 bps | 62 bps | −0,257 |
+
+Isso contraria diretamente o artigo que enquadra o trabalho: Kagan & Baiocchi
+mostram que a calibração melhora **quase monotonicamente com volume negociado e
+número de traders únicos**. Escolher por número de dias seleciona a reunião mais
+distante, que é a mais ilíquida, e maximiza exatamente o ruído que o artigo
+documenta. Note a coluna AC(1): quanto mais raso o contrato, mais negativa a
+autocorrelação de primeira ordem — a assinatura do *bid-ask bounce*.
+
+Na série efetivamente entregue (`data/processed/serie_diaria.csv`, contrato
+26DEC pelo caminho de *trades*) isso produziu um salto de **157 pontos-base em um
+único dia** (2026-03-24) e curtose **47,2** — daí o Jarque-Bera de 24.624. Nenhuma
+surpresa de FOMC move a expectativa 157 bps num dia; é microestrutura de mercado
+raso, não informação.
+
+**Correção aplicada:** `contrato_unico` passa a selecionar por **maior volume**
+entre os contratos que cumprem o mínimo de observações. `KALSHI_EVENTO` força um
+contrato específico. Há ainda um aviso quando o contrato escolhido **não resolveu**.
+
+## Achado secundário: a série não terminava na reunião
+
+`expiry <- max(date)` assume contrato resolvido. Para um contrato **vivo**, isso é
+apenas a data do snapshot. O `KXFED-26DEC` refere-se à reunião de **dezembro de
+2026** — a série terminava em setembro, a três meses da resolução.
+
+Consequência direta: a queda de variância com a aproximação da reunião — o
+fenômeno central do artigo — ficava **fora da amostra**. É por isso que o ARCH-LM
+da Q5(c) deu **p = 0,96**, sem rejeitar.
+
+Trocando para o `KXFED-26JUL`, que de fato resolveu dentro da amostra, os três
+testes concordam:
+
+| Teste | Resultado |
+|---|---|
+| Regressão `log(dif²) ~ dias até a reunião` | inclinação **+0,0168** (t = 2,40, **p = 0,017**) |
+| Teste F, 1ª metade vs 2ª metade | F = **3,516**, **p < 0,00001** |
+| ARCH-LM (7 lags) | LM = **17,68**, **p = 0,0135** |
+
+A variância da variação diária **cai pela metade** conforme a reunião se aproxima
+(8,1 → 4,3 bps). Isso é a Figura 8 de Kagan & Baiocchi vista em série temporal,
+obtida por método inteiramente distinto do deles.
+
+### Uma ressalva metodológica que vale ponto
+
+**O ARCH-LM é o teste errado para essa afirmação, e a lista o exige mesmo assim.**
+Ele procura *agrupamento* de volatilidade — dependência condicional nos quadrados.
+O que o artigo prevê é uma queda **suave e determinística** da variância ao longo
+do horizonte, que o ARCH-LM pode não capturar. Rode o ARCH-LM porque a Q5(c) manda,
+e **acompanhe-o** da regressão e do teste F acima, explicando a diferença. Isso
+transforma um item de checklist em argumento.
+
+## Pendências da lista na rodada atual
+
+| Item | Situação |
+|---|---|
+| Q2(a) | A coluna `lags` reporta **12**, que é o `max_lag`, não a defasagem escolhida pelo AIC. A lista pede o número de defasagens **e** o critério. Extrair de `fit@testreg` o lag efetivo. |
+| Q2(c) | `D = 0` justificado com *"não foi imposta diferença sazonal"* — decisão **por omissão**. Precisa de evidência (teste com `s`). |
+| Q2(d) | Não abordado. E os testes **são ambíguos**: ADF com tendência dá −3,19 (não rejeita a 5%, VC −3,43) enquanto KPSS `tau` dá 0,150 (rejeita a 5%, VC 0,146). A lista pede explicitamente que a ambiguidade seja explicitada e a escolha justificada. |
+| Q4(d) | Não documentado. Resposta verificada: **o R inclui σ̂²ₐ em `k`**. |
+| Q5(d) | `output/tables/modelos_descartados.csv` **não existe**. É entrega obrigatória. |
+| Q7(e) | Sazonal ingênuo usa `s = 7`. Defensável — a série é de calendário e inclui fins de semana — mas precisa ser **justificado** no texto, não deixado implícito. |
+| Q7(g) | Cobertura = **100%** contra 95% nominais, exatamente como previsto. Falta a explicação (janela de validação é o trecho de menor variância). |
+| Q4 | `ARIMA(3,1,2)` selecionado — cinco parâmetros numa série que a hipótese diz ser martingale. Provável ajuste ao ruído de microestrutura do contrato raso. **Reestimar após a troca de contrato.** |
