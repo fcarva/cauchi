@@ -10,6 +10,39 @@ resultados preditivos nao identificam eficiencia sob a medida fisica P. Alinhado
 Diercks, Katz & Wright (2026), *Kalshi and the Rise of Macro Markets* (referencia:
 `jdkatz21/Prediction_Markets_Public`).
 
+## Os dois artigos
+
+| Artigo | Papel |
+|---|---|
+| **Kagan & Baiocchi (2026)**, *Calibration in Prediction Markets* | **A hipotese.** Precos da Kalshi se comportam como probabilidades genuinas, e cada vez mais perto da resolucao. Em *Economics*, Brier cai quase linearmente de 0,108 (3 meses) para 0,066 (fechamento). |
+| **Diercks, Katz & Wright (2026)**, FEDS 2026-010, DOI 10.17016/FEDS.2026.010 | **O metodo.** Converte contratos binarios em distribuicao implicita e momentos. E o codigo que o `01_build_series.R` transcreve. |
+
+A justificativa de Kagan & Baiocchi e a Lei dos Grandes Numeros, logo o teste deles e
+**transversal**. Por construcao nao diz nada sobre a **trajetoria** de um mercado
+individual. Se o preco e probabilidade calibrada que se atualiza com informacao, pela
+lei das expectativas iteradas ele e um **martingale** -- e e isso que Box-Jenkins testa.
+Contagem no PDF do FEDS 2026-010: "random walk" 0 ocorrencias, "martingale" 0.
+
+**Ressalva obrigatoria na conclusao:** as probabilidades sao risco-neutras (medida Q),
+nao fisicas (medida P), e podem estar distorcidas por premio de risco (FEDS 2026-010,
+secao 3). O resultado estabelece martingale **sob a medida risco-neutra**; separar isso
+de eficiencia sob a medida fisica exigiria identificar o premio de risco.
+
+## Desvio declarado: frequencia
+A lista pede **"preferencialmente mensal ou trimestral"**. A serie e **diaria**:
+a Kalshi opera desde 2021 e seus mercados de FFR desde 2022, entao mensal nao alcanca
+as **120 observacoes minimas**; e o fenomeno de interesse (atualizacao da expectativa
+com a chegada de informacao) e intrinsecamente de alta frequencia. O minimo e cumprido
+com folga (181 obs). A serie **nao** esta em pacote de R ou Python, como a lista exige.
+
+Os itens sazonais (Q2c, Q3a, Q3b, Q7e-ii) **nao** podem ser respondidos com "nao se
+aplica" -- isso e ponto perdido. Ver `docs/alinhamento.md`.
+
+## O que a serie e, com precisao
+Nota de rodape 2 do FEDS 2026-010: o contrato denota o **limite superior** da faixa-alvo.
+O balde indexado por `s` e a faixa `[s, s+0,25]`, e somar `+0,125` entrega o **ponto medio
+da faixa-alvo do FOMC**. Descreva assim no relatorio, nao como "taxa esperada" generica.
+
 ## A serie
 - **Fonte:** API publica da Kalshi (`api.elections.kalshi.com/trade-api/v2`), candlesticks
   diarios (`period_interval=1440`). Dados de mercado sao **publicos, sem credenciais**

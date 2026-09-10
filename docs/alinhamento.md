@@ -365,3 +365,112 @@ Contagem de termos no PDF completo do FEDS 2026-010: **"random walk" 0 ocorrênc
 "martingale" 0, "efficien" 1**. Somado ao artigo de calibração, cuja justificativa é
 a Lei dos Grandes Números e cujo teste é transversal, nenhum dos dois faz o teste em
 série temporal que a Lista 01 pede. A afirmação de complementaridade não é retórica.
+
+---
+
+# Rodada com KXFED-26JUL: o que melhorou e o que quebrou
+
+Série regenerada: **181 obs, 2026-01-30 a 2026-07-29** — e agora ela **termina na
+reunião**, não na data do snapshot. A troca de contrato funcionou:
+
+| | 26DEC (antes) | 26JUL (agora) |
+|---|---:|---:|
+| σ̂²ₐ do ARIMA(1,1,0) | 0,02603 | **0,00755** (−71%) |
+| média \|diferença\| | 6,72 bps | **3,41 bps** |
+| amplitude do nível | 1,76 pp | **0,83 pp** |
+| termina na resolução? | não | **sim** |
+
+## O modelo selecionado é inadmissível
+
+`q4_selecao.csv` traz **ARIMA(3,1,3)** pelo AIC. Ele falha a Questão 4(f):
+
+```
+raízes MA (módulo): 1,2465 | 1,000034 | 1,000034
+raízes AR (módulo): 1,1207 | 1,1207 | 8,8755
+```
+
+**Duas raízes MA sobre o círculo unitário — o polinômio não é invertível.** A Q4(f)
+exige explicitamente que as raízes estejam *fora* do círculo. E as raízes AR em 1,12
+deixam o modelo à beira da não-estacionariedade.
+
+Some-se a isso que **dois dos seis coeficientes não são significantes**: `ar3`
+(t = 1,007) e `ma2` (t = −0,448). Seis parâmetros, dois inúteis, e não-invertível.
+
+**Este é o primeiro item de `output/tables/modelos_descartados.csv`** — o arquivo que
+a Q5(d) exige e que ainda não existe. Motivo do descarte: falha de invertibilidade.
+
+## AIC e BIC divergem — e isso é a Questão 4(e) inteira
+
+| Modelo | AIC | BIC |
+|---|---:|---:|
+| ARIMA(1,1,0) | −365,68 | −359,30 |
+| **ARIMA(1,1,1)** | −398,47 | **−388,89** ← BIC |
+| ARIMA(3,1,3) | **−408,83** ← AIC | −386,48 |
+
+`q4_selecao.csv` reporta **apenas o AIC**. A divergência existe e a resposta se escreve
+sozinha: o BIC é consistente e escolhe o modelo parcimonioso; o AIC é eficiente para
+previsão mas aqui seleciona um modelo que **viola a invertibilidade**. Como a Q4(f) é
+restrição de admissibilidade, e não critério de ajuste, o (3,1,3) sai **independentemente
+do AIC**.
+
+O **ARIMA(1,1,1)** é o candidato defensável: raiz MA em **1,2174** (fora do círculo,
+invertível), `ar1` = 0,2499 (t = 2,86) e `ma1` = −0,8214 (t = −19,4), ambos significantes.
+O `ma1` fortemente negativo já sinaliza proximidade da sobrediferenciação — o que conversa
+diretamente com a Questão 6.
+
+## Os outliers são artefato de fim de semana
+
+Curtose da diferença: **43,7**. Daí o Jarque-Bera de 16.603. A causa é visível:
+
+| Data | Dia | Salto |
+|---|---|---:|
+| 2026-03-16 | segunda | **−82,4 bps** |
+| 2026-03-21 | **sábado** | **+47,2 bps** |
+| 2026-03-17 | terça | +37,5 bps |
+
+**Uma variação de 47 pontos-base num sábado não é informação.** Não há pregão. É o
+carregamento do último preço combinado com cotações rasas. E a mediana de \|diferença\|
+é **1,02 bps** contra desvio-padrão de **9,15 bps**: a distribuição inteira é dominada
+por um punhado de outliers de março.
+
+Há ainda **23 diferenças exatamente nulas** em 180 (12,8%) — os dias sem negociação.
+
+**Recomendação:** restringir a série a **dias de pregão**. A decisão é justificada por
+evidência (o salto de sábado), entra na Questão 1(a) como tratamento de outliers, e
+resolve de quebra o período sazonal: passa de `s = 7` (calendário) para `s = 5` (semana
+útil), que é o único `s` com sentido econômico.
+
+## O ARCH-LM confirma a ressalva metodológica — nos dados reais
+
+Variância da diferença: **15,53 bps no primeiro terço → 1,80 bps no último**. Queda de
+**8,6×** conforme a reunião se aproxima. É a Figura 8 de Kagan & Baiocchi, e é enorme.
+
+E mesmo assim o **ARCH-LM dá p = 0,0669** — não rejeita a 5%.
+
+Isso já estava previsto neste documento e agora está demonstrado em dado real: o ARCH-LM
+procura *agrupamento* de volatilidade, não queda *determinística* ao longo do horizonte.
+Rode-o porque a Q5(c) manda, e **acompanhe-o** da regressão de log(dif²) contra dias até
+a reunião e do teste F entre metades. Sem isso, a Q5(c) reporta um não-resultado e perde
+justamente o achado que liga o trabalho ao artigo.
+
+## Previsão: resultado mais interessante do que o previsto
+
+| Esquema | ARIMA | Passeio aleatório | Sazonal ingênuo |
+|---|---:|---:|---:|
+| Origem fixa, 24 passos (RMSE) | **0,02389** | 0,02816 | 0,02411 |
+| Origem móvel, 1 passo (RMSE) | 0,02099 | **0,01959** | 0,03685 |
+
+O ARIMA **vence** em múltiplos passos e **perde** em um passo. O teste limpo de martingale
+é o de **um passo à frente**, e ali o passeio aleatório ganha — como a hipótese prevê.
+A vitória em 24 passos é pequena em termos absolutos (4,3 bps de RMSE) e merece um
+Diebold-Mariano antes de qualquer afirmação.
+
+Cobertura do IC de 95%: **100%**, exatamente como previsto neste documento.
+
+## Ainda pendente
+
+- `output/tables/modelos_descartados.csv` — **exigido pela Q5(d)**, não existe.
+- Q2(c): `D = 0` continua justificado por *"não foi imposta diferença sazonal"*.
+- Q2(d): não abordada.
+- Q4(d): convenção de contagem de `k` não documentada na saída (resposta: o R inclui σ̂²ₐ).
+- Q4(e): `q4_selecao.csv` reporta só o AIC, escondendo a divergência.
