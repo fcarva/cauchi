@@ -19,8 +19,8 @@ Diercks, Katz & Wright (2026), *Kalshi and the Rise of Macro Markets* (referenci
 
 A justificativa de Kagan & Baiocchi e a Lei dos Grandes Numeros, logo o teste deles e
 **transversal**. Por construcao nao diz nada sobre a **trajetoria** de um mercado
-individual. Se o preco e probabilidade calibrada que se atualiza com informacao, pela
-lei das expectativas iteradas ele e um **martingale** -- e e isso que Box-Jenkins testa.
+individual. A lista pede que essa implicacao seja testada na trajetoria temporal
+de um mercado individual; os artigos de referencia nao executam esse teste.
 Contagem no PDF do FEDS 2026-010: "random walk" 0 ocorrencias, "martingale" 0.
 
 **Ressalva obrigatoria na conclusao:** as probabilidades sao risco-neutras (medida Q),
@@ -48,7 +48,8 @@ da faixa-alvo do FOMC**. Descreva assim no relatorio, nao como "taxa esperada" g
   diarios (`period_interval=1440`). Dados de mercado sao **publicos, sem credenciais**
   (series, events e candlesticks sao leitura anonima; chave de API so serve para ordens).
 - **Frequencia:** diaria (a Kalshi existe desde 2021; mensal nao atinge as 120 obs minimas).
-- **Snapshot congelado em:** _AAAA-MM-DD_ (preencher).
+- **Snapshot congelado em:** 2026-09-10 (`data/raw/snapshot_2026-09-10/`, coleta de
+  2026-09-10T02:20Z UTC; hashes em `manifest.json`).
 
 ### Qual serie do Fed? (resolvido)
 A Kalshi tem **duas** familias do Fed, e elas nao sao intercambiaveis:
@@ -73,6 +74,7 @@ nenhum. Ver `docs/metodologia.md`.
 ```
 R/00_pull_kalshi.R       coleta da API -> data/raw/ (rode UMA vez; congela o banco)
 scripts/pull_kalshi_trades.py coleta trades autenticados -> data/raw/
+scripts/pull_kalshi_full.py coleta snapshot datado (mercados, candles, trades)
 R/01_build_series.R      painel bruto -> data/processed/serie_diaria.csv
 R/02..08_*.R             Questoes 1 a 7, na ordem de execucao
 run_all.R                reproduz 01..08 sobre o banco congelado
@@ -89,6 +91,7 @@ Rscript R/00_pull_kalshi.R --discover   # lista os series_ticker reais; nao grav
 # ajuste SERIES_TICKER no topo de R/00_pull_kalshi.R, depois:
 Rscript R/00_pull_kalshi.R --refresh    # grava/atualiza data/raw/kalshi_fed_panel.csv
 python scripts/pull_kalshi_trades.py    # coleta trades historicos e recentes autenticados
+python scripts/pull_kalshi_full.py --series KXFED  # snapshot novo e imutavel
 ```
 O script **se recusa a sobrescrever** um snapshot existente; `--refresh` destrava a
 atualizacao de proposito. Ao final ele imprime linhas/reunioes/dias e os rotulos exatos
@@ -102,6 +105,12 @@ Com trades, o pipeline usa o ultimo negocio diario, como no paper. No fallback d
 candles, usa `mid` por padrao para reduzir o bid-ask bounce; `yes_close` e usado
 apenas quando o mid nao esta disponivel. A reuniao do modo `contrato_unico` e
 escolhida por maior volume total, nao apenas por quantidade de dias.
+
+Para usar um snapshot completo no construtor, defina `KALSHI_SNAPSHOT` para a
+pasta `data/raw/snapshot_AAAA-MM-DD`. O `R/01_build_series.R` usa `expiration_time`
+da API como horizonte de liquidacao, em vez de inferir `expiry` pela ultima data
+observada. O coletor pagina `/events`, aceita `--resume`, grava `manifest.json` com
+SHA-256 e se recusa a sobrescrever snapshots existentes.
 
 ## Reprodutibilidade
 O criterio do professor e objetivo: rodar o codigo sobre o banco entregue tem de devolver
@@ -120,7 +129,7 @@ exatamente os mesmos numeros e graficos. Por isso:
    renv::restore()
    source("run_all.R")     # regenera serie, figuras, tabelas e sessionInfo.txt
    ```
-- **R:** _versao_ (preencher).  **Pacotes:** `renv.lock` + `sessionInfo.txt`.
+- **R:** 4.6.1 (2026-06-24 ucrt), Windows 11 x64.  **Pacotes:** `renv.lock` + `sessionInfo.txt`.
 
 ## Mapa arquivo -> questao
 | Questao | Arquivo |
@@ -146,7 +155,7 @@ O `01_build_series.R` foi escrito a partir da metodologia publicada do paper,
 mas **nao foi executado** contra dados reais (a sessao que o escreveu nao tinha
 R nem acesso a rede). As checagens internas falham alto de proposito.
 
-Os `_(preencher)_` do README (data do snapshot, versao do R) fecham nos passos 2 e 4.
+A data do snapshot e a versao do R estao preenchidas acima (2026-09-10; R 4.6.1).
 
 ## Licenca
 MIT (ver `LICENSE`). Sugestao: manter o repo **privado** ate a entrega/correcao (o professor

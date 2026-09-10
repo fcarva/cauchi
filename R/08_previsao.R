@@ -160,7 +160,7 @@ p1 <- ggplot() +
               fill = COR$banda, alpha = 0.13) +
   geom_line(data = obs_df, aes(date, y), colour = COR$tinta, linewidth = 0.75) +
   geom_line(data = longo, aes(date, valor, colour = serie, linetype = serie), linewidth = 0.7) +
-  geom_vline(xintercept = as.numeric(serie$date[T0]), colour = COR$tinta_fraca,
+  geom_vline(xintercept = serie$date[T0], colour = COR$tinta_fraca,
              linewidth = 0.3, linetype = "13") +
   annotate("text", x = serie$date[T0], y = max(hi, na.rm = TRUE),
            label = "  inicio da validacao", hjust = 0, vjust = 1.4,

@@ -1,2 +1,2 @@
 d,D,periodo_sazonal,justificativa
-1,0,7,A primeira diferenca e a transformacao analisada; nao foi imposta diferenca sazonal.
+1,0,7,"d = 1 pelos testes de raiz unitaria em nivel e primeira diferenca. D = 0 decidido com evidencia, nao por omissao: o periodo candidato e s = 7 porque a Kalshi negocia nos sete dias (q1_atividade_semanal.csv); nsdiffs sugere D = 0 (OCSB) e D = 0 (Canova-Hansen); a FAC da primeira diferenca nos lags 7, 14, 21 fica dentro da banda de 95% (+/-0.1461); e impor D = 1 piora o AIC e piora o BIC. Ver q2_sazonal.csv."

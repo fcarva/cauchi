@@ -1,0 +1,2 @@
+modelo,n_coeficientes,k_usado_pelo_AIC,sigma2_conta_como_parametro,verificacao,aic_recalculado,aic_reportado,nota
+"ARIMA(1,1,1)",2,3,TRUE,"attr(logLik(fit), 'df') contra length(coef(fit))",-398.47135831977874,-398.47135831977874,"k = 3 para 2 coeficientes: a variancia residual estimada E contabilizada como parametro livre. Toda comparacao AIC/BIC nesta tabela usa a mesma convencao e a mesma amostra efetiva (n = 180), condicao sem a qual os criterios nao sao comparaveis (Q4c)."

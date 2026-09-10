@@ -135,6 +135,33 @@ que fez a série do `KXFED-26DEC` terminar a três meses da resolução e o ARCH
 p = 0,96. Com `markets.csv`, o horizonte até a resolução (τ) passa a ser real, e não
 inferido.
 
+#### Reunião e liquidação são datas diferentes
+
+Coletar o metadado não basta: é preciso usar o campo certo. A API expõe **duas**
+datas, separadas por cerca de uma semana:
+
+| Campo | Significado | `KXFED-26JUL` |
+|---|---|---|
+| `close_time` | o mercado para de negociar — **é a data da reunião do FOMC** | 2026-07-29 |
+| `expiration_time` | a Kalshi liquida e paga | 2026-08-05 |
+
+A janela `days_before_horizon = 180` do paper conta dias **até a reunião**, que é o
+evento econômico que o mercado precifica; a semana seguinte é apenas o prazo
+administrativo de pagamento. Portanto **`expiry` ancora em `close_time`**, e
+`expiration_time` viaja junto na coluna `liquidacao` da série, como metadado.
+
+Duas armadilhas relacionadas, ambas já corrigidas em `R/01_build_series.R`:
+
+- **Não recalcule `expiry` depois de lê-lo.** Uma versão do script lia `close_time`
+  corretamente e logo em seguida o sobrescrevia com `max(date)` por evento. Para o
+  `KXFED-26JUL` as duas datas coincidem, então nada quebrava visivelmente — mas para
+  qualquer contrato ainda ativo o `expiry` voltava a ser a data do snapshot, que é
+  precisamente o bug original de volta, com o metadado correto já em mãos.
+- **Nos fallbacks sem `markets.csv`, avise.** Os ramos que leem o schema plano não
+  têm metadado e precisam inferir o horizonte de `max(date)`. Isso é aceitável como
+  degradação, desde que emita `warning()` — um horizonte inferido não deve passar por
+  observado em silêncio.
+
 ### O que ele coleta
 
 | Arquivo | Conteúdo |

@@ -57,11 +57,24 @@ UA = "PPGEco-UFES-Econometria-II/1.0 (uso academico)"
 def load_env(path: Path = Path(".env")) -> dict:
     env = {}
     if path.exists():
-        for line in path.read_text(encoding="utf-8").splitlines():
-            line = line.strip()
+        lines = path.read_text(encoding="utf-8").splitlines()
+        index = 0
+        while index < len(lines):
+            line = lines[index].strip()
             if line and not line.startswith("#") and "=" in line:
                 k, v = line.split("=", 1)
-                env[k.strip()] = v.strip().strip('"').strip("'")
+                k, v = k.strip(), v.strip().strip('"').strip("'")
+                if k in {"KALSHI_PRIVATE_KEY", "KALSHI_PRIVATE_KEY_PEM"} and "BEGIN " in v:
+                    block = [v]
+                    index += 1
+                    while index < len(lines):
+                        block.append(lines[index].strip())
+                        if "END " in lines[index]:
+                            break
+                        index += 1
+                    v = "\n".join(block) + "\n"
+                env[k] = v
+            index += 1
     return env
 
 
@@ -159,6 +172,10 @@ class Cliente:
 
 
 # ------------------------------------------------------------------- utilidades
+# Cobertura por coluna de cada arquivo escrito, para entrar no manifesto.
+COBERTURA: dict[str, dict[str, int]] = {}
+
+
 def escrever_csv(caminho: Path, linhas: list[dict], campos: list[str]) -> int:
     caminho.parent.mkdir(parents=True, exist_ok=True)
     with caminho.open("w", newline="", encoding="utf-8") as f:
@@ -166,7 +183,33 @@ def escrever_csv(caminho: Path, linhas: list[dict], campos: list[str]) -> int:
         w.writeheader()
         for l in linhas:
             w.writerow(l)
+    COBERTURA[caminho.name] = {
+        c: sum(1 for l in linhas if l.get(c) not in (None, "")) for c in campos
+    }
     return len(linhas)
+
+
+def conferir_cobertura(nome: str, essenciais: list[str], total: int) -> None:
+    """Avisa quando um arquivo sai sintaticamente valido mas sem conteudo util.
+
+    A API ja devolveu candlesticks cujos sub-objetos price/yes_bid/yes_ask vinham
+    ausentes: 32.120 linhas gravadas com ticker e timestamp e absolutamente mais
+    nada. O CSV passava em qualquer checagem de formato, o sha256 batia, e o
+    problema so aparecia horas depois, no R, como um painel vazio. Contar o
+    preenchimento aqui e o que transforma isso em erro visivel na coleta.
+    """
+    cob = COBERTURA.get(nome, {})
+    presentes = {c: cob.get(c, 0) for c in essenciais if cob.get(c, 0) > 0}
+    if total and not presentes:
+        print(f"  !! ATENCAO: {nome} tem {total} linhas e NENHUMA das colunas "
+              f"essenciais preenchida ({', '.join(essenciais)}).")
+        print("     O arquivo e inutilizavel como fonte de preco. A cobertura por "
+              "coluna esta registrada no manifesto.")
+    elif total:
+        pior = min(presentes.values())
+        print(f"  cobertura: {len(presentes)}/{len(essenciais)} colunas essenciais "
+              f"preenchidas; a menos preenchida cobre {pior}/{total} linhas "
+              f"({100 * pior / total:.1f}%).")
 
 
 def sha256(caminho: Path) -> str:
@@ -275,7 +318,10 @@ def main() -> int:
             if i % 10 == 0:
                 ckpt.write_text(json.dumps(sorted(feitos)))
                 print(f"  candles {i}/{len(tickers)} -- {len(linhas)} linhas")
-        print(f"candlesticks.csv: {escrever_csv(destino / 'candlesticks.csv', linhas, campos)} linhas")
+        n_cd = escrever_csv(destino / "candlesticks.csv", linhas, campos)
+        print(f"candlesticks.csv: {n_cd} linhas")
+        conferir_cobertura("candlesticks.csv",
+                           ["price_close", "price_mean", "yes_bid_close", "yes_ask_close"], n_cd)
 
     # --- trades ---------------------------------------------------------------
     if not a.no_trades:
@@ -297,7 +343,10 @@ def main() -> int:
             if i % 10 == 0:
                 ckpt.write_text(json.dumps(sorted(feitos)))
                 print(f"  trades {i}/{len(tickers)} -- {len(linhas)} negocios")
-        print(f"trades.csv: {escrever_csv(destino / 'trades.csv', linhas, campos)} negocios")
+        n_tr = escrever_csv(destino / "trades.csv", linhas, campos)
+        print(f"trades.csv: {n_tr} negocios")
+        conferir_cobertura("trades.csv",
+                           ["yes_price_dollars", "yes_price", "count_fp", "count"], n_tr)
 
     # --- manifesto ------------------------------------------------------------
     arquivos = {}
@@ -305,6 +354,11 @@ def main() -> int:
         with p.open(encoding="utf-8") as f:
             n = sum(1 for _ in f) - 1
         arquivos[p.name] = {"linhas": n, "bytes": p.stat().st_size, "sha256": sha256(p)}
+        if p.name in COBERTURA:
+            # Quantas linhas trazem cada coluna preenchida. Sem isto, um CSV com
+            # colunas inteiramente vazias e indistinguivel de um CSV integro:
+            # linhas, bytes e sha256 batem nos dois casos.
+            arquivos[p.name]["cobertura_colunas"] = COBERTURA[p.name]
     (destino / "manifest.json").write_text(json.dumps({
         "coletado_em_utc": dt.datetime.now(dt.timezone.utc).isoformat(),
         "series": a.series, "days_back": a.days_back,

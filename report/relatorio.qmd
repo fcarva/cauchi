@@ -32,12 +32,12 @@ que oferecem e a Lei dos Grandes Numeros, e portanto o teste que executam e
 com preco declarado. Por construcao, esse desenho nada diz sobre a **trajetoria**
 de um mercado individual.
 
-Se o preco e uma probabilidade bem calibrada que se atualiza com a chegada de
-informacao, entao pela lei das expectativas iteradas ele e um **martingale**. Este
-trabalho testa essa implicacao em serie temporal, num unico mercado, pelo
-instrumental de Box-Jenkins. As previsoes correspondentes sao: a serie e I(1), suas
-diferencas sao ruido branco, e nenhum ARIMA supera o passeio aleatorio fora da
-amostra. A construcao da distribuicao implicita segue Diercks, Katz & Wright (2026).
+Este trabalho testa em serie temporal, num unico mercado, uma implicacao de
+precos que se atualizam com a chegada de informacao, usando Box-Jenkins. As
+previsoes correspondentes sao: a serie e I(1), suas diferencas sao ruido branco,
+e nenhum ARIMA supera o passeio aleatorio fora da amostra. Os artigos de referencia
+nao executam esse teste temporal; a construcao da distribuicao implicita segue
+Diercks, Katz & Wright (2026).
 
 **Desvio declarado quanto a frequencia.** A lista indica preferencia por series
 mensais ou trimestrais. A serie aqui e diaria: a Kalshi opera desde 2021 e seus
@@ -68,10 +68,27 @@ fig("q1_nivel.png", "Serie em nivel")
 fig("q1_diferenca.png", "Primeira diferenca")
 ```
 
-A serie e diaria e cobre 181 observacoes no horizonte metodologico de 180 dias.
-O grafico em nivel mostra variacao de nivel associada a atualizacao das expectativas
-para a reuniao, sem sazonalidade calendarial evidente. A dispersao deve ser lida com
-cautela porque os strikes disponiveis e a liquidez variam ao longo do horizonte.
+A serie e diaria e cobre 181 observacoes no horizonte metodologico de 180 dias
+anteriores a reuniao do FOMC. O horizonte ancora na data em que o mercado para de
+negociar (`close_time`), que e a data da reuniao, e nao na data de liquidacao da
+Kalshi (`expiration_time`), uma semana posterior; as duas constam da serie.
+
+O grafico em nivel mostra variacao associada a atualizacao das expectativas para a
+reuniao. A dispersao deve ser lida como funcao do horizonte: ela encolhe a medida
+que a reuniao se aproxima e resta menos incerteza a resolver, o que a Questao 5
+quantifica.
+
+```{r}
+tab("q1_atividade_semanal.csv")
+```
+
+A tabela acima mede a atividade por dia da semana e sustenta uma decisao que
+aparece nas Questoes 2, 3 e 7: o periodo sazonal candidato e `s = 7`, nao `s = 5`.
+A Kalshi negocia nos sete dias, e o contrato analisado teve negocios em 22 dos 26
+sabados e em 23 dos 26 domingos da amostra. O que distingue o fim de semana nao e a
+ausencia de negociacao, e sim a espessura do livro: o volume diario cai por um fator
+de tres a sete. Nenhuma observacao e, portanto, mero carregamento do ultimo preco de
+sexta-feira, e o calendario relevante tem sete dias.
 
 # Ordem de integracao
 
@@ -89,12 +106,18 @@ tab("q2_testes_raiz_unitaria.csv")
 
 ```{r}
 tab("q2_decisao.csv")
+tab("q2_sazonal.csv")
 ```
 
 A decisao adotada e `d = 1` e `D = 0`. A primeira diferenca do ponto medio da
-faixa-alvo e a transformacao usada
-nas etapas de identificacao; nao foi imposta diferenca sazonal, pois a frequencia
-diaria nao mostrou evidencia suficiente de uma sazonalidade deterministica estavel.
+faixa-alvo e a transformacao usada nas etapas de identificacao.
+
+`D = 0` e resultado, nao omissao. Com `s = 7` justificado pela atividade de
+negociacao, cinco evidencias independentes convergem: os testes de raiz unitaria
+sazonal OCSB e Canova-Hansen indicam `D = 0`; a FAC da primeira diferenca fica
+dentro da banda de 95 por cento nos lags 7, 14 e 21; e impor `D = 1` piora o AIC e o
+BIC em cerca de 112 pontos. Diferenciar sazonalmente uma serie sem raiz sazonal
+introduz uma raiz MA nao-invertivel, exatamente o defeito que a Questao 6 examina.
 
 # Identificacao
 
@@ -103,11 +126,27 @@ diaria nao mostrou evidencia suficiente de uma sazonalidade deterministica estav
 ```{r}
 fig("q3_fac_ficp.png", "FAC e FACP da primeira diferenca")
 tab("q3_candidatos.csv")
+tab("q3_lags_sazonais.csv")
 ```
 
-Foram propostos ARIMA(1,1,0), ARIMA(1,1,1) e ARIMA(3,1,3). Todos usam a mesma
-variavel dependente e a mesma amostra efetiva, tornando a comparacao por AIC e BIC
-interpretavel.
+A FAC da primeira diferenca corta abruptamente apos o lag 1, com um coeficiente
+negativo e forte, enquanto a FACP decai ao longo de varios lags. Esse par de padroes
+identifica um MA(1); o lag 1 isolado da FACP sustenta a leitura AR(1) concorrente.
+O coeficiente negativo no primeiro lag e o que a literatura de microestrutura atribui
+a oscilacao entre pontas de compra e venda, e nao a previsibilidade economica.
+
+Dai os candidatos: ARIMA(0,1,1), a leitura canonica; ARIMA(1,1,0), a leitura
+autorregressiva; ARIMA(1,1,1), a mistura parcimoniosa. O ARIMA(3,1,3) entra como
+quarta especificacao, deliberadamente estendida, para ser confrontada com a restricao
+de admissibilidade da Questao 4 -- os lags 2, 3, 5, 6 e 8 da FACP sugerem estrutura
+mais rica, e e util verificar o que acontece quando o criterio de informacao a premia.
+Todos usam a mesma variavel dependente e a mesma amostra efetiva, condicao sem a qual
+a comparacao por AIC e BIC nao seria valida.
+
+As defasagens sazonais foram inspecionadas explicitamente, com seis ciclos completos
+no grafico e a tabela acima cobrindo os lags 7, 14 e 21 e suas vizinhancas. Nenhuma
+fica fora da banda de 95 por cento. Por isso nenhum candidato leva componente
+sazonal: a ausencia de sazonalidade e uma conclusao apoiada em evidencia.
 
 # Estimacao e selecao
 
@@ -115,14 +154,43 @@ interpretavel.
 
 ```{r}
 tab("q4_estimacao_modelos.csv")
+tab("q4_raizes.csv")
+fig("q4_raizes.png", "Raizes inversas e o circulo unitario")
 tab("q4_selecao.csv")
-fig("q4_raizes.png", "Raizes estimadas")
+tab("q4_convencao_k.csv")
 ```
 
-Os modelos foram estimados por maxima verossimilhanca. O AIC foi usado para a escolha
-operacional; o BIC e reportado para avaliar a penalizacao mais forte por complexidade.
-Os modulos das raizes sao reportados em `q4_raizes.csv`; valores superiores a um
-indicam estacionariedade/invertibilidade na convencao utilizada.
+Os modelos foram estimados por maxima verossimilhanca sobre a mesma amostra efetiva
+(`n = 180` apos a diferenciacao), o que torna AIC e BIC comparaveis entre eles.
+
+**Raizes e admissibilidade.** A tabela `q4_raizes.csv` traz as duas escalas para
+evitar a ambiguidade que a convencao costuma criar. A coluna `modulo` e a raiz do
+polinomio propriamente dita, e a condicao de estacionariedade e de invertibilidade e
+`modulo > 1`; a coluna `modulo_inverso` e o seu reciproco, para o qual a mesma
+condicao se le como valor menor que um. A figura desenha as raizes inversas contra o
+circulo unitario, convencao grafica usual: admissivel e o ponto que cai dentro do
+circulo.
+
+O ARIMA(3,1,3) tem duas raizes MA de modulo 1,000034. Nao se trata de uma margem
+apertada, e sim de raizes numericamente sobre o circulo unitario: o otimizador parou
+na fronteira da regiao admissivel, nao dentro dela. O polinomio nao e invertivel e o
+modelo esta fora de competicao.
+
+**Ordem das operacoes.** Invertibilidade e estacionariedade sao restricoes de
+admissibilidade, nao criterios de ajuste. Um modelo que as viola nao e um modelo pior;
+e um modelo que nao esta no conjunto de escolha. Por isso o filtro se aplica antes do
+criterio de informacao, e nao como ressalva posterior. Sem a restricao, o AIC elegeria
+o ARIMA(3,1,3) -- o melhor ajuste entre os candidatos e, simultaneamente, o unico
+inadmissivel. Entre os tres admissiveis, AIC e BIC concordam no ARIMA(1,1,1), que e o
+modelo levado adiante. A distincao importa: relatar apenas o vencedor do AIC
+irrestrito produziria um modelo cujas previsoes de longo prazo nao convergem e cuja
+representacao autorregressiva infinita nao existe.
+
+**Convencao de `k`.** A contagem de parametros usada pelos criterios de informacao foi
+verificada no proprio objeto ajustado, e nao presumida: `attr(logLik(fit), "df")`
+devolve 3 para um modelo com 2 coeficientes, de modo que a variancia residual estimada
+conta como parametro livre. O AIC recalculado a mao com essa convencao reproduz
+exatamente o valor reportado, como registra `q4_convencao_k.csv`.
 
 # Diagnostico
 
@@ -131,13 +199,35 @@ indicam estacionariedade/invertibilidade na convencao utilizada.
 ```{r}
 fig("q5_diagnostico_residuos.png", "Diagnostico dos residuos")
 tab("q5_diagnostico.csv")
+tab("q5_heterocedasticidade.csv")
 tab("q5_sobreacte.csv")
+tab("modelos_descartados.csv")
 ```
 
-O Ljung-Box foi calculado no lag 14 com correcao pelos graus de liberdade do modelo.
-O teste de Jarque-Bera avalia normalidade e o ARCH-LM usa sete defasagens dos
-residuos ao quadrado. O sobreajuste deliberado acrescenta um termo AR e um termo MA
-para verificar se os coeficientes adicionais justificam a complexidade.
+O Ljung-Box foi calculado no lag 14 com correcao pelos graus de liberdade do modelo e
+nao rejeita a ausencia de autocorrelacao residual. O Jarque-Bera rejeita a normalidade
+com folga, resultado esperado numa serie cujas variacoes se concentram em poucos dias
+de noticia.
+
+**Heterocedasticidade: dois fenomenos distintos.** O ARCH-LM testa agrupamento de
+volatilidade, isto e, variancia alta seguida de variancia alta. Nao e o que caracteriza
+esta serie. A dispersao aqui cai porque o horizonte encurta: a cada dia que passa,
+resta menos incerteza a ser resolvida ate a reuniao. Isso e uma tendencia
+deterministica na variancia, e um teste desenhado para agrupamento pode nao detecta-la
+ainda que ela seja grande.
+
+Por isso o ARCH-LM aparece acompanhado de duas medidas diretas. A regressao de
+`log(diferenca ao quadrado)` sobre os dias que faltam para a reuniao tem inclinacao
+positiva e altamente significativa: quanto mais distante a reuniao, maior a dispersao.
+E a variancia da primeira metade da amostra supera a da segunda por um fator de 55,6,
+com o teste F rejeitando a igualdade. Os tres resultados sao complementares, e nao
+substitutos.
+
+**Modelos descartados.** A tabela `modelos_descartados.csv` registra o caminho
+percorrido, e nao apenas o destino: o ARIMA(3,1,3) sai por falha de invertibilidade na
+Questao 4, e as duas especificacoes de sobreajuste saem por nao melhorarem o ajuste.
+O sobreajuste deliberado acrescenta um termo AR e um termo MA ao modelo selecionado;
+como nenhum dos dois reduz o AIC, a especificacao escolhida e adequada nesse sentido.
 
 # Sobrediferenciacao
 
@@ -160,17 +250,46 @@ avaliar o custo pratico de diferenciar em excesso.
 As ultimas 24 observacoes foram reservadas para validacao. O primeiro esquema usa
 origem fixa e previsao multipassos; o segundo usa origem movel e previsao de um passo,
 com os coeficientes mantidos. Os benchmarks sao o passeio aleatorio e o ingenuo
-sazonal com periodo semanal.
+sazonal, este com periodo `s = 7` -- o periodo justificado na Questao 1 pela atividade
+de negociacao nos sete dias da semana, e confirmado como sem raiz sazonal na Questao 2.
 
 ```{r}
 fig("q7_previsao.png", "Previsao e intervalo de 95 por cento")
 tab("q7_metricas_previsao.csv")
-tab("q7_cobertura.csv")
+tab("q7_diebold_mariano.csv")
 ```
 
 As metricas devem ser comparadas sem alterar o modelo para favorecer o resultado:
-RMSE, MAE e MAPE menores indicam melhor desempenho, enquanto a cobertura deve ser
-comparada com a nominal de 95 por cento.
+RMSE, MAE e MAPE menores indicam melhor desempenho. Mas a comparacao de medias e
+observacao, nao inferencia; por isso o teste de Diebold-Mariano, com a correcao de
+amostra pequena de Harvey, Leybourne e Newbold, indispensavel com um horizonte de 24
+pontos. O teste e reportado apenas para o esquema de origem movel: o esquema de origem
+fixa tem uma unica origem, seus 24 erros formam um so caminho, e com `h = n` a propria
+correcao se anula.
+
+Contra o passeio aleatorio, o teste nao rejeita a igualdade de acuracia preditiva, sob
+perda quadratica e sob perda absoluta. E o resultado que a hipotese de martingale
+preve: se o preco de hoje ja incorpora toda a informacao disponivel, nenhum modelo
+linear deveria supera-lo de forma sistematica. Contra o ingenuo sazonal, o ARIMA vence
+com significancia, o que era esperado -- nao ha razao economica para a expectativa de
+hoje se parecer com a de sete dias atras mais do que com a de ontem.
+
+Uma ressalva de potencia. A janela de validacao e o trecho final da serie, justamente
+onde a incerteza ja foi quase toda resolvida e a variancia e minima. Os erros
+absolutos sao pequenos para todos os competidores, e o teste tem pouca potencia nesse
+regime. "Nao rejeitar" nao equivale a "sao equivalentes".
+
+```{r}
+fig("q7_pit.png", "Transformada integral de probabilidade")
+tab("q7_cobertura.csv")
+```
+
+A cobertura empirica do intervalo de 95 por cento e a versao fraca de uma pergunta
+mais exigente: a densidade preditiva inteira esta correta? A transformada integral de
+probabilidade responde. Sob densidades corretas as PIT seriam uniformes em `(0,1)`; o
+teste de Kolmogorov-Smirnov rejeita a uniformidade nos dois esquemas, e o histograma
+mostra concentracao central. As densidades preditivas sao largas demais -- o modelo
+acerta o centro e exagera a incerteza, coerente com uma cobertura acima da nominal.
 
 Os precos sao probabilidades risco-neutras, sob a medida Q, e podem incorporar
 premios de risco. Portanto, o confronto com o passeio aleatorio nao deve ser lido

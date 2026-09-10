@@ -1,0 +1,8 @@
+criterio,valor,referencia,conclusao
+nsdiffs (OCSB),0,D sugerido,D = 0
+nsdiffs (Canova-Hansen),0,D sugerido,D = 0
+FAC da 1a diferenca no lag 7,0.11523395462870793,banda 95%: +/- 0.1461,dentro da banda
+FAC da 1a diferenca no lag 14,-3.3443123789854965e-4,banda 95%: +/- 0.1461,dentro da banda
+FAC da 1a diferenca no lag 21,0.05601105101251529,banda 95%: +/- 0.1461,dentro da banda
+AIC: D = 0 menos D = 1,-112.01490207465923,negativo favorece D = 0,D = 0
+BIC: D = 0 menos D = 1,-111.8959063054819,negativo favorece D = 0,D = 0

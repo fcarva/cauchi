@@ -1,0 +1,4 @@
+modelo,etapa,motivo,evidencia,questao
+"ARIMA(3,1,3)",Q4(f) admissibilidade,polinomio MA nao-invertivel,raizes MA com modulo 1.000034; 1.000034 (limiar 1 + 0.001),Q4(f)
+"ARIMA(2,1,1)",Q5(e) sobreajuste deliberado,termo extra nao melhora o ajuste,"AIC -397.6060 contra -398.4714 do ARIMA(1,1,1) (diferenca +0.8653); admissivel: TRUE",Q5(e)
+"ARIMA(1,1,2)",Q5(e) sobreajuste deliberado,termo extra nao melhora o ajuste,"AIC -397.1758 contra -398.4714 do ARIMA(1,1,1) (diferenca +1.2956); admissivel: TRUE",Q5(e)

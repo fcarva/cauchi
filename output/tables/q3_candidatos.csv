@@ -1,4 +1,5 @@
-model,p,d,q,justificativa
-"ARIMA(1,1,0)",1,1,0,Persistencia no primeiro lag da diferenca.
-"ARIMA(1,1,1)",1,1,1,Especificacao intermediaria para persistencia e choque.
-"ARIMA(3,1,3)",3,1,3,Estrutura estendida para os lags persistentes e a heterocedasticidade residual observados.
+model,p,d,q,P,D,Q,periodo_sazonal,justificativa,evidencia
+"ARIMA(0,1,1)",0,1,1,0,0,0,7,Leitura canonica: a FAC corta apos o lag 1 e a FACP decai. E a especificacao que o par de graficos indica primeiro.,"FAC significativa nos lags 1, 4, 8; FACP decai ao longo de 1, 2, 3, 5, 6, 8."
+"ARIMA(1,1,0)",1,1,0,0,0,0,7,Leitura AR concorrente: o lag 1 da FACP e o maior em modulo; testa se a persistencia se explica por um unico termo autorregressivo.,"FACP no lag 1 = -0.3175, fora da banda de 95% (+/-0.1461)."
+"ARIMA(1,1,1)",1,1,1,0,0,0,7,Mistura parcimoniosa: acomoda simultaneamente persistencia e choque quando FAC e FACP nao separam com nitidez.,"FAC no lag 1 = -0.3175 e FACP no lag 1 = -0.3175, ambas fora da banda."
+"ARIMA(3,1,3)",3,1,3,0,0,0,7,"Especificacao estendida, incluida para SER TESTADA contra a restricao de admissibilidade da Q4(f): os lags 2, 3, 5, 6 e 8 da FACP sugerem estrutura mais rica, e o AIC tende a premia-la.","FACP fora da banda tambem nos lags 2, 3, 5, 6, 8."

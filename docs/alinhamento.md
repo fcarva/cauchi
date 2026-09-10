@@ -68,18 +68,23 @@ Q2(c) pede `D`, Q3(a) pede "ao menos dois ciclos sazonais completos", Q3(b) perg
 por picos em `s, 2s, 3s` e vizinhanças `s±1`, Q7(e)(ii) exige benchmark sazonal ingênuo.
 
 **Não responda "não se aplica".** Isso é ponto perdido. Numa série financeira diária
-existe um candidato sazonal legítimo: **efeito dia-da-semana, `s = 5`**. Então:
+existe um candidato sazonal legítimo: o **efeito dia-da-semana**. Então:
 
-- Q3(a): FAC/FACP com **pelo menos 10 defasagens** (dois ciclos de 5 dias úteis).
-- Q3(b): inspecione explicitamente os lags 5, 10, 15 e as vizinhanças 4, 6, 9, 11.
-- Q2(c): teste a necessidade de diferença sazonal com `s = 5` e conclua `D = 0`
-  **com evidência**, não por omissão.
-- Q7(e)(ii): rode o sazonal ingênuo com `s = 5` e mostre que ele perde. Explique
-  por quê: não há razão econômica para a expectativa de hoje se parecer com a de
-  cinco pregões atrás mais do que com a de ontem.
+- Q3(a): FAC/FACP com **pelo menos dois ciclos sazonais completos** de defasagens.
+- Q3(b): inspecione explicitamente os lags `s`, `2s`, `3s` e as vizinhanças `s±1`.
+- Q2(c): teste a necessidade de diferença sazonal e conclua `D` **com evidência**,
+  não por omissão.
+- Q7(e)(ii): rode o sazonal ingênuo e mostre que ele perde. Explique por quê: não há
+  razão econômica para a expectativa de hoje se parecer com a de um ciclo atrás mais
+  do que com a de ontem.
 
 Assim todo item sazonal é respondido com análise de verdade, e a ausência de
 sazonalidade vira **resultado documentado** em vez de lacuna.
+
+> **Qual `s`?** Este documento recomendava `s = 5` (semana útil), supondo que a Kalshi
+> fechasse aos fins de semana. **Ela não fecha** — a contagem está na seção "Correção
+> (2026-09-09)", mais abaixo. O período adotado é **`s = 7`**, por evidência de
+> negociação nos sete dias, e é ele que aparece nos itens acima.
 
 ---
 
@@ -260,14 +265,17 @@ transforma um item de checklist em argumento.
 
 | Item | Situação |
 |---|---|
-| Q2(a) | A coluna `lags` reporta **12**, que é o `max_lag`, não a defasagem escolhida pelo AIC. A lista pede o número de defasagens **e** o critério. Extrair de `fit@testreg` o lag efetivo. |
-| Q2(c) | `D = 0` justificado com *"não foi imposta diferença sazonal"* — decisão **por omissão**. Precisa de evidência (teste com `s`). |
-| Q2(d) | Não abordado. E os testes **são ambíguos**: ADF com tendência dá −3,19 (não rejeita a 5%, VC −3,43) enquanto KPSS `tau` dá 0,150 (rejeita a 5%, VC 0,146). A lista pede explicitamente que a ambiguidade seja explicitada e a escolha justificada. |
-| Q4(d) | Não documentado. Resposta verificada: **o R inclui σ̂²ₐ em `k`**. |
-| Q5(d) | `output/tables/modelos_descartados.csv` **não existe**. É entrega obrigatória. |
-| Q7(e) | Sazonal ingênuo usa `s = 7`. Defensável — a série é de calendário e inclui fins de semana — mas precisa ser **justificado** no texto, não deixado implícito. |
-| Q7(g) | Cobertura = **100%** contra 95% nominais, exatamente como previsto. Falta a explicação (janela de validação é o trecho de menor variância). |
-| Q4 | `ARIMA(3,1,2)` selecionado — cinco parâmetros numa série que a hipótese diz ser martingale. Provável ajuste ao ruído de microestrutura do contrato raso. **Reestimar após a troca de contrato.** |
+| Q2(a) | **ABERTA.** A coluna `lags` reporta **12**, que é o `max_lag`, não a defasagem escolhida pelo AIC. A lista pede o número de defasagens **e** o critério. Extrair de `fit@testreg` o lag efetivo. |
+| Q2(c) | **RESOLVIDA (2026-09-09).** `q2_sazonal.csv` reúne OCSB, Canova-Hansen, a FAC nos lags 7/14/21 contra a banda de 95% e a comparação AIC/BIC entre `D = 0` e `D = 1`. As cinco evidências convergem para `D = 0`; impor `D = 1` piora AIC e BIC em ~112 pontos. |
+| Q2(d) | **ABERTA.** Não abordado. E os testes **são ambíguos**: ADF com tendência dá −3,19 (não rejeita a 5%, VC −3,43) enquanto KPSS `tau` dá 0,150 (rejeita a 5%, VC 0,146). A lista pede explicitamente que a ambiguidade seja explicitada e a escolha justificada. |
+| Q4(d) | **RESOLVIDA (2026-09-09).** `q4_convencao_k.csv` verifica no próprio objeto: `attr(logLik(fit), "df")` = 3 para 2 coeficientes, e o AIC recalculado com `k = 3` reproduz o reportado. σ̂²ₐ **conta** como parâmetro. |
+| Q4(e) | **RESOLVIDA (2026-09-09).** `q4_selecao.csv` reporta os vencedores por AIC e por BIC, com e sem a restrição de admissibilidade, e sinaliza se divergem. |
+| Q4(f) | **RESOLVIDA (2026-09-09).** A restrição de admissibilidade passou a ser aplicada **antes** do critério de informação. `q4_raizes.csv` traz `modulo` e `modulo_inverso` com a coluna `admissivel` correta — antes gravava a raiz inversa sob um rótulo que exigia `> 1`, e saía `FALSE` em todas as linhas. |
+| Q5(c) | **RESOLVIDA (2026-09-09).** `q5_heterocedasticidade.csv` acompanha o ARCH-LM com a regressão de `log(dif²)` sobre os dias até a reunião (inclinação positiva, p ≈ 2e−08) e o teste F entre metades (variância cai 55,6×). |
+| Q5(d) | **RESOLVIDA (2026-09-09).** `output/tables/modelos_descartados.csv` é gerado pelo `05` e completado pelo `06`. Primeira linha: ARIMA(3,1,3), falha de invertibilidade. |
+| Q7(e) | **RESOLVIDA (2026-09-09).** `s = 7` justificado por medição — a Kalshi negocia nos sete dias (`q1_atividade_semanal.csv`). Ver a seção "Correção (2026-09-09)". |
+| Q7(g) | **ABERTA.** Cobertura = **100%** contra 95% nominais, exatamente como previsto. O PIT já está no relatório; falta amarrar explicitamente a explicação de que a janela de validação é o trecho de menor variância. |
+| Q4 | **RESOLVIDA (2026-09-09).** Com a restrição de admissibilidade, o selecionado passou a ser **ARIMA(1,1,1)** — dois parâmetros, AIC e BIC concordando. O ARIMA(3,1,3) que o AIC irrestrito elegia era não-invertível. |
 
 ---
 
@@ -418,7 +426,13 @@ invertível), `ar1` = 0,2499 (t = 2,86) e `ma1` = −0,8214 (t = −19,4), ambos
 O `ma1` fortemente negativo já sinaliza proximidade da sobrediferenciação — o que conversa
 diretamente com a Questão 6.
 
-## Os outliers são artefato de fim de semana
+## ~~Os outliers são artefato de fim de semana~~ — REFUTADO, ver correção abaixo
+
+> **Esta seção está errada na premissa e foi corrigida em 2026-09-09.** A recomendação
+> de `s = 5` que ela deriva **não** foi adotada. O raciocínio fica registrado porque
+> este documento é diário de auditoria, e o erro é instrutivo: uma inferência correta
+> sobre uma premissa que ninguém tinha ido medir. Leia a subseção "Correção" logo
+> depois da recomendação antes de usar qualquer coisa daqui.
 
 Curtose da diferença: **43,7**. Daí o Jarque-Bera de 16.603. A causa é visível:
 
@@ -439,6 +453,54 @@ Há ainda **23 diferenças exatamente nulas** em 180 (12,8%) — os dias sem neg
 evidência (o salto de sábado), entra na Questão 1(a) como tratamento de outliers, e
 resolve de quebra o período sazonal: passa de `s = 7` (calendário) para `s = 5` (semana
 útil), que é o único `s` com sentido econômico.
+
+### Correção (2026-09-09): a Kalshi negocia 24/7
+
+A premissa "não há pregão" é falsa, e com ela cai a recomendação inteira. Contagem
+direta no snapshot, restrita ao `KXFED-26JUL` e à janela da série:
+
+| Dia | Negócios | Dias com negócio | Contratos |
+|---|---:|---:|---:|
+| segunda | 948 | 23 de 26 | 576.066 |
+| terça | 2.214 | 24 de 26 | 741.711 |
+| quarta | 1.952 | 26 de 26 | 540.028 |
+| quinta | 899 | 24 de 25 | 374.794 |
+| sexta | 1.097 | 25 de 26 | 797.659 |
+| **sábado** | **542** | **22 de 26** | 109.406 |
+| **domingo** | **698** | **23 de 26** | 113.133 |
+
+A Kalshi é um mercado eletrônico contínuo: **não fecha aos fins de semana**. O salto
+de +47,2 bps do sábado 2026-03-21 não é carregamento do preço de sexta — é negócio
+real, num livro cerca de cinco vezes mais raso. Continua sendo um outlier de
+microestrutura, e continua merecendo discussão na Questão 1(a) como tal; o que ele
+**não** é, é artefato de preenchimento.
+
+Consequência para o período sazonal, que se inverte: o calendário relevante tem
+**sete** dias, não cinco. Um ciclo de 5 dias úteis pressuporia um fechamento de fim de
+semana que não existe neste mercado. **`s = 7` é a escolha correta**, e agora por
+evidência medida, não por default. Isso fecha a pendência da Q7(e) (linha 268), que
+pedia justificativa explícita.
+
+O que os itens sazonais passam a exigir, sem mudar de exigência:
+
+- **Q2(c)**: testar `D` com `s = 7` e concluir com evidência. Feito — `q2_sazonal.csv`
+  reúne OCSB, Canova-Hansen, a FAC nos lags 7/14/21 e a comparação AIC/BIC entre
+  `D = 0` e `D = 1`. Os cinco convergem para `D = 0`.
+- **Q3(a)/(b)**: FAC/FACP com pelo menos dois ciclos — 42 defasagens cobrem seis — e
+  inspeção explícita dos lags 7, 14, 21 e vizinhanças. Feito, em
+  `q3_lags_sazonais.csv`: nenhum fora da banda de 95%.
+- **Q7(e)(ii)**: sazonal ingênuo com `s = 7`, mostrando que perde. Feito, e agora com
+  o teste de Diebold-Mariano a sustentar a afirmação.
+
+A tabela `q1_atividade_semanal.csv` é gerada pelo pipeline e reproduz a contagem acima,
+para que a justificativa não dependa deste documento.
+
+**Sobre as 23 diferenças nulas:** continuam existindo, mas não são "dias sem
+negociação" — são dias em que o último negócio saiu no mesmo preço do dia anterior, o
+que num mercado de tick grosso e livro raso é comum. Duas delas, aliás, não são zeros
+exatos, e sim resíduo de ponto flutuante da ordem de 1e-16 pontos percentuais; o
+`06_diagnostico.R` corta por tolerância em vez de igualdade exata, porque o número de
+observações da regressão da Q5(c) chegou a mudar conforme o parser de CSV usado.
 
 ## O ARCH-LM confirma a ressalva metodológica — nos dados reais
 
@@ -469,11 +531,24 @@ Cobertura do IC de 95%: **100%**, exatamente como previsto neste documento.
 
 ## Ainda pendente
 
-- `output/tables/modelos_descartados.csv` — **exigido pela Q5(d)**, não existe.
-- Q2(c): `D = 0` continua justificado por *"não foi imposta diferença sazonal"*.
-- Q2(d): não abordada.
-- Q4(d): convenção de contagem de `k` não documentada na saída (resposta: o R inclui σ̂²ₐ).
-- Q4(e): `q4_selecao.csv` reporta só o AIC, escondendo a divergência.
+*Atualizado em 2026-09-09. A lista original desta seção está resolvida, salvo o item
+Q2(d); ver a tabela "Pendências da lista na rodada atual" para o estado por item.*
+
+- ~~`output/tables/modelos_descartados.csv` — **exigido pela Q5(d)**, não existe.~~
+  Gerado pelo `05_estimacao.R` e completado pelo `06_diagnostico.R`.
+- ~~Q2(c): `D = 0` continua justificado por *"não foi imposta diferença sazonal"*.~~
+  Decidido com cinco evidências em `q2_sazonal.csv`.
+- **Q2(d): não abordada.** Continua sendo a única pendência da Questão 2 — a
+  ambiguidade entre ADF com tendência e KPSS `tau` precisa ser explicitada no texto.
+- ~~Q4(d): convenção de contagem de `k` não documentada na saída.~~ Verificada
+  programaticamente em `q4_convencao_k.csv`.
+- ~~Q4(e): `q4_selecao.csv` reporta só o AIC, escondendo a divergência.~~ Agora
+  reporta AIC e BIC, com e sem a restrição de admissibilidade.
+- **Q7(g):** o PIT está no relatório, mas falta amarrar a explicação de que a janela
+  de validação é o trecho de menor variância da amostra.
+- **Q1(a):** o outlier de sábado continua merecendo tratamento explícito no texto —
+  não como artefato de preenchimento (ele não é), e sim como negócio real em livro
+  raso.
 
 ---
 

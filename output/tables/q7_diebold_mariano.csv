@@ -1,4 +1,4 @@
 esquema,comparacao,h,DM_quadratico,p_quadratico,veredito_quadratico,DM_absoluto,p_absoluto,veredito_absoluto
-origem_movel_1_passo,"ARIMA(3,1,3) vs passeio_aleatorio",1,0.27816291041655145,0.7833726507826723,nao rejeita acuracia igual,2.1293198058027696,0.044152671318179286,benchmark superior
-origem_movel_1_passo,"ARIMA(3,1,3) vs sazonal_ingenuo",1,-3.3611065213582436,0.0027011923483571602,ARIMA superior,-3.4520917832598945,0.0021665372126021976,ARIMA superior
+origem_movel_1_passo,"ARIMA(1,1,1) vs passeio_aleatorio",1,-0.05841297128681883,0.9539242289510651,nao rejeita acuracia igual,1.7073952072134766,0.10121452065602587,nao rejeita acuracia igual
+origem_movel_1_passo,"ARIMA(1,1,1) vs sazonal_ingenuo",1,-3.558554613786131,0.0016712514473032694,ARIMA superior,-4.414914547140242,2.001448181571311e-4,ARIMA superior
 origem_fixa_24_passos,nao aplicavel,24,NA,NA,origem unica: DM nao se aplica (correcao HLN zera com h = n),NA,NA,idem

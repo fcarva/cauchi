@@ -1,0 +1,12 @@
+medida,valor
+Inclinacao de log(dif^2) sobre dias ate a reuniao,0.022408053857630804
+Erro-padrao da inclinacao,0.003804028305020092
+Estatistica t da inclinacao,5.890611757031195
+p-valor da inclinacao,2.3597568338723673e-8
+Variancia da 1a metade,0.016537903474467847
+Variancia da 2a metade,2.972623831310414e-4
+Razao de variancias (1a / 2a),55.634027085012924
+Estatistica F,55.634027085012924
+p-valor do teste F,0
+ARCH-LM (para contraste),22.06942070068883
+p-valor do ARCH-LM (para contraste),0.002471340354689642
