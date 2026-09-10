@@ -11,12 +11,12 @@ pacf(dif1, lag.max = 42, main = "FACP da primeira diferenca")
 dev.off()
 
 candidatos <- data.frame(
-	model = c("ARIMA(1,1,0)", "ARIMA(1,1,1)", "ARIMA(3,1,2)"),
-	p = c(1L, 1L, 3L), d = 1L, q = c(0L, 1L, 2L),
+	model = c("ARIMA(1,1,0)", "ARIMA(1,1,1)", "ARIMA(3,1,3)"),
+	p = c(1L, 1L, 3L), d = 1L, q = c(0L, 1L, 3L),
 	justificativa = c(
 		"Persistencia no primeiro lag da diferenca.",
 		"Especificacao intermediaria para persistencia e choque.",
-		"Estrutura estendida para os lags persistentes observados na FAC/FACP."
+		"Estrutura estendida para os lags persistentes e a heterocedasticidade residual observados."
 	), stringsAsFactors = FALSE
 )
 write_table(candidatos, "q3_candidatos.csv")

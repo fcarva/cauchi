@@ -26,8 +26,9 @@
 #   3. DIFERENCIA strikes adjacentes para obter a massa de cada balde;
 #   4. normaliza para somar 1;
 #   5. taxa esperada = sum(p_i * strike_i) + strike_int/2.
-# O termo strike_int/2 (= 0.125) nao e detalhe: como o balde (s_i, s_i+0.25]
-# fica indexado por s_i, sem o ajuste a serie inteira vem 12,5 bps baixa.
+# O termo strike_int/2 (= 0.125) nao e detalhe: o contrato em s_i denota o
+# limite superior da faixa-alvo [s_i, s_i+0.25]. O balde fica indexado por s_i,
+# entao o ajuste usa o ponto medio da faixa; sem ele a serie vem 12,5 bps baixa.
 #
 # AVISO: escrito a partir da metodologia publicada, mas NAO executado contra o
 # snapshot (esta sessao nao tem R nem acesso a rede). As checagens abaixo falham
@@ -46,7 +47,7 @@ ARQ_OUT           <- "data/processed/serie_diaria.csv"
 STRIKE_INT        <- 0.25              # espacamento dos strikes da FFR
 MOMENT_ADJUSTMENT <- STRIKE_INT / 2    # 0.125 -- ponto medio do balde
 DAYS_BEFORE       <- 180               # horizonte original do paper
-COL_PRECO         <- "mid"             # "mid" (mitiga bid-ask bounce) ou "yes_close"
+COL_PRECO         <- "mid"             # somente no fallback de candles
 MIN_OBS           <- 120               # exigencia da lista
 
 # Como colapsar o painel (uma reuniao por vez) em UMA serie:
@@ -91,8 +92,14 @@ if (file.exists(ARQ_TRADES)) {
     dplyr::filter(!is.na(preco))
 } else {
   message("Trades nao encontrados; usando candles: ", ARQ_IN)
-  painel <- readr::read_csv(ARQ_IN, show_col_types = FALSE) |>
-    dplyr::mutate(preco = dplyr::coalesce(mid, yes_close) * 100)
+  candles <- readr::read_csv(ARQ_IN, show_col_types = FALSE)
+  fallback_preco <- if (COL_PRECO == "mid") {
+    dplyr::coalesce(candles$mid, candles$yes_close)
+  } else {
+    dplyr::coalesce(candles$yes_close, candles$mid)
+  }
+  painel <- candles |>
+    dplyr::mutate(preco = fallback_preco * 100)
 }
 
 painel <- painel |>
@@ -180,11 +187,11 @@ painel <- painel |>
 # Balde extra abaixo do menor strike, para nao empurrar a media para 0.
 baldes_baixos <- painel |>
   dplyr::group_by(event_ticker, date, expiry) |>
-  dplyr::summarise(strike = min(strike) - STRIKE_INT, .groups = "drop") |>
+  dplyr::summarise(strike = min(strike) - STRIKE_INT, volume = 0, .groups = "drop") |>
   dplyr::mutate(preco_aj = NA_real_)
 
 probs <- dplyr::bind_rows(
-    dplyr::select(painel, event_ticker, date, expiry, strike, preco_aj),
+  dplyr::select(painel, event_ticker, date, expiry, strike, preco_aj, volume),
     baldes_baixos
   ) |>
   dplyr::group_by(event_ticker, date) |>
@@ -216,6 +223,7 @@ momentos <- probs |>
   dplyr::summarise(
     taxa_esperada = sum(prob * strike, na.rm = TRUE) + MOMENT_ADJUSTMENT,
     variancia     = sum(prob * (strike - sum(prob * strike))^2, na.rm = TRUE),
+    volume        = sum(volume, na.rm = TRUE),
     n_strikes     = dplyr::n(),
     .groups       = "drop"
   ) |>
@@ -224,11 +232,14 @@ momentos <- probs |>
 ## ---- painel -> serie unica ----
 serie <- switch(MODO,
   "contrato_unico" = {
-    escolhida <- momentos |>
-      dplyr::count(event_ticker, sort = TRUE) |>
-      dplyr::slice(1) |>
-      dplyr::pull(event_ticker)
-    message("Reuniao escolhida (mais dias de historico): ", escolhida)
+    liquidez <- momentos |>
+      dplyr::group_by(event_ticker) |>
+      dplyr::summarise(volume_total = sum(volume, na.rm = TRUE),
+                       n_dias = dplyr::n(), .groups = "drop") |>
+      dplyr::arrange(dplyr::desc(volume_total), dplyr::desc(n_dias))
+    escolhida <- liquidez$event_ticker[1]
+    message("Reuniao escolhida (maior volume total): ", escolhida,
+            " (volume ", signif(liquidez$volume_total[1], 6), ")")
     momentos |> dplyr::filter(event_ticker == escolhida)
   },
   "front" = {
@@ -276,6 +287,6 @@ if (faltando > 0) {
 
 readr::write_csv(serie, ARQ_OUT)
 
-cat(sprintf("Serie: %d obs | %s a %s | taxa esperada de %.3f a %.3f\n",
+cat(sprintf("Serie: %d obs | %s a %s | ponto medio da faixa de %.3f a %.3f\n",
             nrow(serie), as.character(min(serie$date)), as.character(max(serie$date)),
             min(serie$taxa_esperada), max(serie$taxa_esperada)))

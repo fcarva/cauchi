@@ -3,10 +3,12 @@
 Modelagem Box-Jenkins (ARIMA) de uma serie diaria de **mercado de previsao da Kalshi**
 na categoria **Economics** (decisao de juros do Fed / FOMC), como avaliacao parcial de
 **Econometria II — PPGEco/UFES** (Lista 01). O enquadramento e um **teste de eficiencia
-fraca**: sob eficiencia, a expectativa implicita de mercado e um martingale, logo a serie
-deve ser I(1) com variacao ~ ruido branco, e nenhum ARIMA deve bater o *random walk* fora
-da amostra. Alinhado a Diercks, Katz & Wright (2026), *Kalshi and the Rise of Macro
-Markets* (referencia: `jdkatz21/Prediction_Markets_Public`).
+fraca**: a lista permite confrontar a serie com um passeio aleatorio, mas isso nao e um
+teste implementado por Diercks, Katz & Wright (FEDS 2026-010). A serie e um objeto
+de precificacao risco-neutra (medida Q), potencialmente afetado por premios de risco;
+resultados preditivos nao identificam eficiencia sob a medida fisica P. Alinhado a
+Diercks, Katz & Wright (2026), *Kalshi and the Rise of Macro Markets* (referencia:
+`jdkatz21/Prediction_Markets_Public`).
 
 ## A serie
 - **Fonte:** API publica da Kalshi (`api.elections.kalshi.com/trade-api/v2`), candlesticks
@@ -28,7 +30,7 @@ Usamos a familia de **nivel**, que e a mesma de Diercks-Katz-Wright (o conjunto
 strike ja e numerico, entao a taxa esperada sai da distribuicao sem precisar de
 um mapa arbitrario categoria -> pontos-base.
 
-**Atencao:** o `yes_price` desses contratos e a probabilidade da **cauda**
+**Atencao:** o `yes_price` desses contratos e uma probabilidade risco-neutra da **cauda**
 (`P(taxa > strike)`), nao a de um balde. Os strikes formam uma funcao de
 sobrevivencia, e a massa de cada balde sai por **diferenciacao**. Tratar cada
 desfecho como balde independente gera uma serie errada sem levantar erro
@@ -62,6 +64,11 @@ dos desfechos — esses rotulos sao o que o `01_build_series.R` precisa para mon
 O coletor de candles e publico. O coletor de trades segue o pacote original e exige
 `KALSHI_KEYID` (ou `KALSHI_API_KEY_ID`) e `KALSHI_PRIVATE_KEY` em `.env`; a chave
 privada nao entra neste repo (ver `.gitignore`).
+
+Com trades, o pipeline usa o ultimo negocio diario, como no paper. No fallback de
+candles, usa `mid` por padrao para reduzir o bid-ask bounce; `yes_close` e usado
+apenas quando o mid nao esta disponivel. A reuniao do modo `contrato_unico` e
+escolhida por maior volume total, nao apenas por quantidade de dias.
 
 ## Reprodutibilidade
 O criterio do professor e objetivo: rodar o codigo sobre o banco entregue tem de devolver

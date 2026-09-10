@@ -26,9 +26,9 @@ fig <- function(name, caption) include_graphics(file.path("..", "output/figures"
 A serie foi construida a partir de trades individuais da familia `KXFED`, usando os
 endpoints historico e recente da API da Kalshi. O snapshot entregue contem 63.929
 trades em 98 mercados. A transformacao diaria usa o ultimo preco observado no dia,
-volume agregado e preenchimento forward de dias sem trades. A distribuicao implicita
-e obtida diferenciando a sobrevivencia dos contratos por strike, apos o ajuste
-`middle-out` e a redistribuicao de bins vazios.
+volume agregado e preenchimento forward de dias sem trades. A reuniao escolhida e a
+de maior volume total. A distribuicao implicita e obtida diferenciando a sobrevivencia
+dos contratos por strike, apos o ajuste `middle-out` e a redistribuicao de bins vazios.
 
 ```{r}
 tab("q1_resumo.csv")
@@ -66,7 +66,8 @@ tab("q2_testes_raiz_unitaria.csv")
 tab("q2_decisao.csv")
 ```
 
-A decisao adotada e `d = 1` e `D = 0`. A primeira diferenca e a transformacao usada
+A decisao adotada e `d = 1` e `D = 0`. A primeira diferenca do ponto medio da
+faixa-alvo e a transformacao usada
 nas etapas de identificacao; nao foi imposta diferenca sazonal, pois a frequencia
 diaria nao mostrou evidencia suficiente de uma sazonalidade deterministica estavel.
 
@@ -79,7 +80,7 @@ fig("q3_fac_ficp.png", "FAC e FACP da primeira diferenca")
 tab("q3_candidatos.csv")
 ```
 
-Foram propostos ARIMA(1,1,0), ARIMA(1,1,1) e ARIMA(3,1,2). Todos usam a mesma
+Foram propostos ARIMA(1,1,0), ARIMA(1,1,1) e ARIMA(3,1,3). Todos usam a mesma
 variavel dependente e a mesma amostra efetiva, tornando a comparacao por AIC e BIC
 interpretavel.
 
@@ -146,27 +147,8 @@ As metricas devem ser comparadas sem alterar o modelo para favorecer o resultado
 RMSE, MAE e MAPE menores indicam melhor desempenho, enquanto a cobertura deve ser
 comparada com a nominal de 95 por cento.
 
+Os precos sao probabilidades risco-neutras, sob a medida Q, e podem incorporar
+premios de risco. Portanto, o confronto com o passeio aleatorio nao deve ser lido
+como teste isolado de eficiencia sob a medida fisica P.
+
 <!-- A Questao 8 e manuscrita, conforme as normas da lista. -->
-
-# Preparacao e inspecao preliminar {#sec-q1}
-<!-- Questao 1 -->
-
-# Ordem de integracao {#sec-q2}
-<!-- Questao 2 -->
-
-# Identificacao {#sec-q3}
-<!-- Questao 3 -->
-
-# Estimacao e selecao {#sec-q4}
-<!-- Questao 4 -->
-
-# Diagnostico {#sec-q5}
-<!-- Questao 5 -->
-
-# Sobrediferenciacao {#sec-q6}
-<!-- Questao 6 -->
-
-# Previsao fora da amostra {#sec-q7}
-<!-- Questao 7 -->
-
-<!-- Questao 8 (teorica) e manuscrita e entregue a parte. -->

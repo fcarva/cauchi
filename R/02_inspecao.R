@@ -10,14 +10,14 @@ serie$diferenca <- c(NA_real_, diff(serie$taxa_esperada))
 
 p_level <- ggplot2::ggplot(serie, ggplot2::aes(date, taxa_esperada)) +
 	ggplot2::geom_line(color = "#16425B") +
-	ggplot2::labs(title = "Taxa esperada implícita do Fed", x = NULL, y = "%") +
+	ggplot2::labs(title = "Ponto medio da faixa-alvo do Fed", x = NULL, y = "%") +
 	ggplot2::theme_minimal()
 save_gg(p_level, "q1_nivel.png")
 
 p_diff <- ggplot2::ggplot(serie[-1, ], ggplot2::aes(date, diferenca)) +
 	ggplot2::geom_hline(yintercept = 0, color = "grey60") +
 	ggplot2::geom_line(color = "#C44536") +
-	ggplot2::labs(title = "Primeira diferença da taxa esperada", x = NULL, y = "pontos percentuais") +
+	ggplot2::labs(title = "Primeira diferença do ponto medio da faixa-alvo", x = NULL, y = "pontos percentuais") +
 	ggplot2::theme_minimal()
 save_gg(p_diff, "q1_diferenca.png")
 

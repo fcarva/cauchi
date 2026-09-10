@@ -39,8 +39,8 @@ diagnostico <- data.frame(
 write_table(diagnostico, "q5_diagnostico.csv")
 
 overfits <- list(
-	"ARIMA(4,1,2)" = fit_candidate(serie$taxa_esperada, c(4, 1, 2)),
-	"ARIMA(3,1,3)" = fit_candidate(serie$taxa_esperada, c(3, 1, 3))
+	"ARIMA(4,1,3)" = fit_candidate(serie$taxa_esperada, c(4, 1, 3)),
+	"ARIMA(3,1,4)" = fit_candidate(serie$taxa_esperada, c(3, 1, 4))
 )
 overfit_table <- do.call(rbind, Map(model_row, overfits, names(overfits)))
 write_table(overfit_table, "q5_sobreacte.csv")

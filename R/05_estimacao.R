@@ -6,7 +6,7 @@ x <- as.numeric(serie$taxa_esperada)
 specs <- list(
 	"ARIMA(1,1,0)" = c(1, 1, 0),
 	"ARIMA(1,1,1)" = c(1, 1, 1),
-	"ARIMA(3,1,2)" = c(3, 1, 2)
+	"ARIMA(3,1,3)" = c(3, 1, 3)
 )
 fits <- lapply(specs, function(order) fit_candidate(x, order))
 estimacao <- do.call(rbind, Map(model_row, fits, names(fits)))

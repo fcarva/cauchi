@@ -1,7 +1,7 @@
 # Metodologia: do painel bruto da Kalshi a serie diaria
 
-Toda decisao abaixo e rastreada ate o replication package de **Diercks, Katz &
-Wright (2026), _Kalshi and the Rise of Macro Markets_** (NBER WP 34702),
+Toda decisao abaixo e rastreada ate o paper **Diercks, Katz & Wright (2026),
+FEDS 2026-010, _Kalshi and the Rise of Macro Markets_**,
 repositorio `jdkatz21/Prediction_Markets_Public`. Onde eu simplifiquei, esta
 dito explicitamente.
 
@@ -50,7 +50,9 @@ com os parametros do bloco `FFR levels` de `data_convert_runner.R`:
    - baldes internos: `P(acima de s_i) - P(acima de s_{i+1})`;
    - cauda de cima: `P(acima de s_n) - 1` (piso de 1 cent).
 5. **Normalizacao** para somar 1.
-6. **Taxa esperada** = `sum(p_i * s_i) + 0.125`.
+6. **Ponto medio da faixa-alvo** = `sum(p_i * s_i) + 0.125`. O contrato em
+   `s_i` denota o limite superior da faixa `[s_i, s_i + 0.25]`, portanto o
+   ajuste de meio-balde tem interpretacao economica.
 
 ### O `+ 0.125` nao e detalhe de arredondamento
 O balde `(s_i, s_i + 0.25]` fica indexado pelo seu limite **inferior** `s_i`.
@@ -69,7 +71,8 @@ de uma serie so. Tres modos em `01_build_series.R`:
 | `front` | a cada dia, a reuniao vigente mais proxima | **roll**: o alvo troca e cria salto de nivel artificial |
 | `horizonte_fixo` | a reuniao ~N dias a frente | interpolacao implicita entre reunioes |
 
-**O default e `contrato_unico` de proposito.** No modo `front`, quando uma
+**O default e `contrato_unico` de proposito.** Dentro dele, escolhemos a reuniao
+com maior volume total, como proxy de liquidez. No modo `front`, quando uma
 reuniao vence e a serie passa a seguir a proxima, o alvo muda — o salto que
 aparece nao e noticia economica, e artefato de construcao. Isso entra direto
 nos testes de raiz unitaria da **Questao 2** e no diagnostico de residuos da
@@ -79,11 +82,12 @@ minimo de 120 observacoes.
 
 ## 5. Onde eu simplifiquei (validar)
 
-- **Dado de origem.** O paper usa dados *trade-level* e toma a **ultima
-  negociacao de cada dia** (`convert_to_daily(method = 'last')`). Aqui uso
-  **candlesticks diarios** (`period_interval=1440`), cujo `close` e o analogo
-  direto — e evita paginar milhoes de trades. O `mid` (media bid/ask) e o
-  default por mitigar *bid-ask bounce*; `yes_close` fica de fallback.
+- **Dado de origem.** Com o snapshot de trades, seguimos o paper e tomamos a
+   **ultima negociacao de cada dia** (`convert_to_daily(method = 'last')`). Se
+   apenas candles estiverem disponiveis, usamos `mid` por padrao e `yes_close`
+   apenas como fallback. Nesse caminho, o close de um dia sem negocio pode ser
+   um preco velho; o mid reduz o bid-ask bounce, mas nao e a mesma serie do
+   ultimo negocio trade-level.
 - **`swap_probabilities` nao implementado.** O paper roda um algoritmo extra
   (tipo bubble sort) que empurra massa de baldes vazios em direcao a moda,
   para lidar com dias de liquidez baixa. Nao transcrevi. Se a distribuicao
@@ -91,7 +95,12 @@ minimo de 120 observacoes.
   a Questao 1.
 - **Massa negativa** apos diferenciacao e truncada em 0 antes de normalizar.
 
-## 6. Sobre credenciais
+## 6. Interpretacao economica e credenciais
+
+Os precos da Kalshi sao probabilidades risco-neutras, sob a medida Q, e podem
+ser distorcidos por premios de risco. Assim, comparar com passeio aleatorio
+nao identifica sozinho eficiencia sob a medida fisica P. Separar isso de
+eficiencia sob P exigiria identificar o premio de risco.
 
 Os endpoints usados aqui (`/series`, `/events`, `/candlesticks`) sao **leitura
 publica anonima**. O scraper do paper assina requisicoes com RSA-PSS
