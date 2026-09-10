@@ -113,3 +113,60 @@ Kalshi assina **ordens** — nao entra neste repo (ver `.gitignore`).
 O README dele diz que os dados derivados vem inclusos ("the data is already
 included"), mas `data/` esta no `.gitignore` do proprio repositorio e **nao
 existe no clone**. Nao da para pular a coleta: e preciso puxar da API.
+
+---
+
+## Coleta completa: `scripts/pull_kalshi_full.py`
+
+### Por que um coletor novo
+
+Auditando `scripts/pull_kalshi_trades.py` apareceram duas falhas que afetam o que
+já está no relatório:
+
+**1. `/events` sem paginação.** Uma única chamada com `limit=200` e nenhum cursor.
+Acima de 200 eventos, truncava **em silêncio**. `tests/test_coletor.py` demonstra:
+sobre um servidor falso com 401 eventos em 3 páginas, o método novo recupera os 401;
+o antigo pararia em 200.
+
+**2. Nenhum metadado de liquidação.** O painel não carrega `close_time`,
+`expiration_time`, `status`, `result` nem `settlement`. **Foi essa a raiz do bug em
+que `expiry <- max(date)` tratava a data do snapshot como se fosse a reunião** — o
+que fez a série do `KXFED-26DEC` terminar a três meses da resolução e o ARCH-LM dar
+p = 0,96. Com `markets.csv`, o horizonte até a resolução (τ) passa a ser real, e não
+inferido.
+
+### O que ele coleta
+
+| Arquivo | Conteúdo |
+|---|---|
+| `markets.csv` | metadados por mercado: `close_time`, `expiration_time`, `status`, `result`, `settlement_value`, `open_interest`, `floor_strike`, `cap_strike` |
+| `candlesticks.csv` | OHLC diário + bid/ask de fechamento + volume + open interest, com fallback para o endpoint histórico |
+| `trades.csv` | negócios individuais, deduplicados por `trade_id`, dos endpoints vivo e histórico |
+| `manifest.json` | timestamp UTC, endpoints usados, contagem de chamadas, linhas e **sha256 por arquivo** |
+
+### Diferenças de desenho
+
+- **Credencial é opcional.** Leitura de dados de mercado na Kalshi é pública. O
+  script assina apenas se houver credencial no ambiente e informa o que conseguiu
+  sem ela. O anterior exigia chave para tudo.
+- **Snapshot datado e imutável.** Grava em `data/raw/snapshot_AAAA-MM-DD/` e se
+  **recusa** a sobrescrever. `--force` destrava de propósito; `--resume` continua uma
+  coleta interrompida.
+- **Retomada.** Checkpoint por mercado, gravado a cada 10.
+- **Backoff.** Respeita `Retry-After` em 429 e recua exponencialmente em 5xx.
+
+### O procedimento correto ao re-puxar
+
+Os dados da Kalshi são vivos. Re-puxar **muda os números do relatório**. Portanto:
+
+1. `python scripts/pull_kalshi_full.py --series KXFED` — cria um snapshot novo e
+   datado, sem tocar no anterior;
+2. **não apague o snapshot antigo** — o relatório já entregue depende dele;
+3. aponte o `01` para o novo snapshot e rode `run_all.R` **inteiro**;
+4. commite o snapshot novo, o `manifest.json` e **todos** os outputs regenerados no
+   mesmo commit — números do relatório e banco de dados têm de andar juntos;
+5. atualize a data do snapshot no `README.md` e no bloco de declaração da série.
+
+Entregar o relatório antigo com o snapshot novo quebra exatamente o critério que o
+professor vai verificar: rodar o código sobre o banco entregue tem de devolver os
+mesmos números.
