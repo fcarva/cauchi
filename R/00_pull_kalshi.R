@@ -15,7 +15,7 @@
 #          Rscript R/00_pull_kalshi.R --discover
 #      Olhe a tabela impressa e ajuste SERIES_TICKER abaixo.
 #   2. Coleta (grava o snapshot):
-#          Rscript R/00_pull_kalshi.R
+#          Rscript R/00_pull_kalshi.R --refresh
 #      Gera:
 #        data/raw/kalshi_fed_panel.csv    <- o "banco" (entrega da reprodutibilidade)
 #        data/raw/sessionInfo_pull.txt    <- versoes de R e pacotes NA COLETA
@@ -49,11 +49,11 @@ SERIES_TICKER <- "KXFED"            # familia de NIVEL da FFR (strikes -T4.25).
                                     # Diercks-Katz-Wright usam esta ("fed_levels",
                                     # tickers FED-22DEC-T4.25), nao a de decisao.
                                     # CONFIRME com --discover: a Kalshi renomeia.
-N_EVENTS_MAX  <- 12                 # nao mais que N reunioes (eventos) recentes
-DAYS_BACK     <- 200                # janela por mercado, em dias
+N_EVENTS_MAX  <- 500                # cobre todos os eventos retornados pela API
+DAYS_BACK     <- 3650               # janela historica maxima praticavel, em dias
 OUTDIR        <- "data/raw"         # DEVE bater com o que 01_build_series.R le
 OUTFILE       <- file.path(OUTDIR, "kalshi_fed_panel.csv")
-FORCE_REPULL  <- FALSE              # TRUE apenas para descongelar de proposito
+FORCE_REPULL  <- any(commandArgs(trailingOnly = TRUE) %in% c("--refresh", "--force"))
 
 dir.create(OUTDIR, showWarnings = FALSE, recursive = TRUE)
 

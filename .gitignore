@@ -22,3 +22,5 @@ kalshi*.key
 .DS_Store
 Thumbs.db
 *.log
+__pycache__/
+*.pyc

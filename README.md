@@ -67,6 +67,8 @@ nenhum. Ver `docs/metodologia.md`.
 ```
 R/00_pull_kalshi.R       coleta da API -> data/raw/ (rode UMA vez; congela o banco)
 R/fun_distribuicao.R     nucleo matematico (base R puro, testavel isolado)
+R/99_helpers.R           funcoes compartilhadas das questoes
+scripts/pull_kalshi_trades.py  coleta trades autenticados -> data/raw/
 R/01_build_series.R      painel bruto -> data/processed/serie_diaria.csv
 R/02..08_*.R             Questoes 1 a 7, na ordem de execucao
 run_all.R                reproduz 01..08 sobre o banco congelado
@@ -84,10 +86,11 @@ tests/                   validacao do pipeline contra resposta conhecida
 ```bash
 Rscript R/00_pull_kalshi.R --discover   # lista os series_ticker reais; nao grava nada
 # ajuste SERIES_TICKER no topo de R/00_pull_kalshi.R, depois:
-Rscript R/00_pull_kalshi.R              # grava data/raw/kalshi_fed_panel.csv
+Rscript R/00_pull_kalshi.R --refresh    # grava/atualiza data/raw/kalshi_fed_panel.csv
+python scripts/pull_kalshi_trades.py    # trades historicos e recentes (autenticado)
 ```
-O script **se recusa a sobrescrever** um snapshot existente (`FORCE_REPULL <- TRUE`
-destrava de proposito). Ao final ele imprime linhas/reunioes/dias e os rotulos exatos
+O script **se recusa a sobrescrever** um snapshot existente; `--refresh` destrava a
+atualizacao de proposito. Ao final ele imprime linhas/reunioes/dias e os rotulos exatos
 dos desfechos — esses rotulos sao o que o `01_build_series.R` precisa para montar a serie.
 
 Nao e preciso credencial nenhuma. Se voce tiver uma chave de API da Kalshi, ela **nao**

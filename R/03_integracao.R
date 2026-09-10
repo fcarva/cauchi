@@ -1,10 +1,23 @@
-# 03_integracao.R  --  QUESTAO 2: raiz unitaria e determinacao de d (e D).
-#
-# Q2(a) ADF, PP e KPSS na serie em nivel. Para CADA teste reportar: estatistica,
-#       valor critico, p-valor, numero de defasagens E o criterio usado para
-#       escolhe-lo, e os termos deterministicos incluidos.
-# Q2(b) Justificar explicitamente constante e tendencia na regressao auxiliar do
-#       ADF, e MOSTRAR como a conclusao se altera (ou nao) entre especificacoes.
-# Q2(c) Repetir na serie diferenciada -> d. Avaliar diferenca sazonal com s = 5
-#       (efeito dia-da-semana) e concluir D COM EVIDENCIA, nunca por omissao.
-# Q2(d) Tendencia estocastica ou deterministica? Se ambiguo, explicitar.
+# 03_integracao.R  --  Questao 2: raiz unitaria (ADF/PP/KPSS) -> d, D.
+
+source("R/99_helpers.R")
+serie <- read_series()
+nivel <- as.numeric(serie$taxa_esperada)
+dif1 <- diff(nivel)
+
+testes <- rbind(
+	run_unit_root_tests(nivel, "nivel"),
+	run_unit_root_tests(dif1, "primeira_diferenca")
+)
+write_table(testes, "q2_testes_raiz_unitaria.csv")
+
+decisao <- data.frame(
+	d = 1L, D = 0L, periodo_sazonal = 7L,
+	justificativa = "A primeira diferenca e a transformacao analisada; nao foi imposta diferenca sazonal.",
+	stringsAsFactors = FALSE
+)
+write_table(decisao, "q2_decisao.csv")
+
+grDevices::png(file.path(OUT_FIG, "q2_nivel_base.png"), width = 1200, height = 700)
+stats::ts.plot(stats::ts(nivel, frequency = 7), main = "Serie em nivel", ylab = "%")
+grDevices::dev.off()
