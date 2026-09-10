@@ -24,6 +24,12 @@
 #'
 #' @param precos Vetor de precos em cents, JA ordenado por strike crescente.
 #' @param alvo   Preco-ancora (49 = mediana na escala 1-99 da Kalshi).
+#'
+#' DIVERGENCIA DOCUMENTADA: o texto do paper (FEDS 2026-010, secao 3) diz
+#' "constructing the distribution outward from the MODE toward the tails". Ja o
+#' codigo do replication package deles ancora em `target = 49`, que e o
+#' cruzamento da MEDIANA na escala 1-99 da Kalshi, nao a moda. Este codigo segue
+#' o CODIGO deles, nao a prosa. Vale registrar a divergencia no relatorio.
 #' @return Vetor de precos ajustados, nao-crescente.
 middle_out <- function(precos, alvo = 49) {
   n <- length(precos)

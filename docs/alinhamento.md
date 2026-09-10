@@ -268,3 +268,100 @@ transforma um item de checklist em argumento.
 | Q7(e) | Sazonal ingênuo usa `s = 7`. Defensável — a série é de calendário e inclui fins de semana — mas precisa ser **justificado** no texto, não deixado implícito. |
 | Q7(g) | Cobertura = **100%** contra 95% nominais, exatamente como previsto. Falta a explicação (janela de validação é o trecho de menor variância). |
 | Q4 | `ARIMA(3,1,2)` selecionado — cinco parâmetros numa série que a hipótese diz ser martingale. Provável ajuste ao ruído de microestrutura do contrato raso. **Reestimar após a troca de contrato.** |
+
+---
+
+# O que o paper FEDS 2026-010 acrescenta
+
+Agora com o PDF em mãos (antes eu só tinha lido o código do *replication package*).
+Citação correta: **Diercks, A. M., Katz, J. D. & Wright, J. H. (2026). "Kalshi and
+the Rise of Macro Markets", Finance and Economics Discussion Series 2026-010,
+Board of Governors of the Federal Reserve System.** DOI 10.17016/FEDS.2026.010.
+
+## 1. O que a nossa série é, com precisão
+
+Nota de rodapé 2 do paper: *"Kalshi's contract is denoted for the upper bound of
+the FFR"*. O exemplo deles: strike 4,00 a $0,40 e strike 4,25 a $0,22 dão 18% de
+probabilidade para **a faixa-alvo 4,00–4,25**.
+
+Logo, o balde indexado por `s` é a faixa-alvo `[s, s+0,25]`, e somar `+0,125`
+entrega o **ponto médio da faixa-alvo do FOMC**. Descreva assim no relatório:
+
+> A série é a **expectativa implícita do ponto médio da faixa-alvo dos *fed funds***
+> decidida na reunião de ⟨mês/ano⟩, em pontos percentuais.
+
+Não é "a taxa esperada" genericamente. Essa precisão importa na Questão 1.
+
+## 2. Ponto médio bid/ask: o paper desaconselha, e para o nosso caso a medição inverte
+
+Nota de rodapé 4: *"midpoints of bid-ask spreads seem to introduce additional
+issues due to occasionally large spreads on tail outcomes"*. Eles usam o **último
+preço negociado**.
+
+**Eu havia recomendado `mid` como virtude do pipeline. Contra o paper, isso estava
+errado — mas a medição mostra que o conselho deles não transporta para o nosso
+caminho de dados.** Medido no `KXFED-26JUL`:
+
+| Fonte | obs | dp da diferença | Maior salto | Curtose | AC(1) |
+|---|---:|---:|---:|---:|---:|
+| `yes_close` (último negócio) | 153 | 20,5 bps | 127,8 bps | 21,4 | **−0,379** |
+| `mid` (ponto médio) | 179 | **5,4 bps** | **31,2 bps** | **12,9** | **−0,115** |
+
+A explicação: no pipeline **trade-level** deles, "último negócio" é uma transação
+real. No nosso caminho por **candlesticks**, o `yes_close` de um dia sem negócios é
+preço velho — daí as 26 observações perdidas e os saltos de 128 bps.
+
+O `AC(1)` é a evidência direta: −0,379 no último negócio contra −0,115 no ponto
+médio é a assinatura do *bid-ask bounce*, que o `mid` remove. A correlação entre as
+variações diárias das duas séries é de apenas **0,135** — são séries diferentes,
+não variantes da mesma.
+
+**Decisão:** quando há trades (`data/raw/kalshi_fed_trades.csv`), o pipeline usa o
+último negócio e segue o paper. O `COL_PRECO` governa apenas o *fallback* por
+candlesticks, onde `mid` é mensuravelmente melhor. Ambas as escolhas ficam
+documentadas — é isso que um apêndice de robustez deve conter.
+
+## 3. Liquidez: o paper sustenta a correção do contrato
+
+Seção 2.3: *"Liquidity is important as it helps to ensure prices reflect real-time
+information from incoming news."* E na seção 3: *"the outermost (tail) contracts
+often suffer from low trading volume, which can lead to stale prices and noisy
+estimates in the tails—especially in illiquid markets."*
+
+Isso confirma, pela fonte do método, que selecionar o contrato por **volume** (e
+não por número de dias) é a escolha correta.
+
+## 4. Divergência entre a prosa e o código deles
+
+O paper diz construir a distribuição *"outward from the **mode** toward the tails"*.
+O código do *replication package* ancora em `target = 49`, que é o cruzamento da
+**mediana** na escala 1–99 da Kalshi. Nosso `middle_out()` segue o **código**, não a
+prosa. Divergência registrada em `R/fun_distribuicao.R`; vale uma nota de rodapé no
+relatório.
+
+## 5. A ressalva que precisa estar na conclusão
+
+Seção 3, *Caveats*: *"it is giving risk-neutral probabilities under the **Q measure**,
+not actual physical probabilities under the **P measure**... the probabilities may be
+distorted by risk premia. The retail investor base of Kalshi might alter the risk
+premia properties."*
+
+**Esta é a principal ameaça à interpretação do resultado da Questão 7.** Sob a medida
+Q com prêmio de risco variando no tempo, o preço **não precisa** ser martingale sob a
+medida P — e, no sentido inverso, não rejeitar o passeio aleatório não estabelece
+eficiência de forma limpa. O que o teste estabelece é mais modesto e ainda assim
+válido:
+
+> A série se comporta como martingale **sob a medida risco-neutra**. Separar isso de
+> eficiência sob a medida física exigiria identificar o prêmio de risco, o que está
+> fora do alcance desta lista.
+
+Escreva isso na conclusão. É a diferença entre um resultado defensável e uma
+afirmação que o professor derruba numa linha.
+
+## 6. E a confirmação de que a brecha existe
+
+Contagem de termos no PDF completo do FEDS 2026-010: **"random walk" 0 ocorrências,
+"martingale" 0, "efficien" 1**. Somado ao artigo de calibração, cuja justificativa é
+a Lei dos Grandes Números e cujo teste é transversal, nenhum dos dois faz o teste em
+série temporal que a Lista 01 pede. A afirmação de complementaridade não é retórica.

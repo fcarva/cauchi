@@ -46,7 +46,30 @@ ARQ_OUT           <- "data/processed/serie_diaria.csv"
 STRIKE_INT        <- 0.25              # espacamento dos strikes da FFR
 MOMENT_ADJUSTMENT <- STRIKE_INT / 2    # 0.125 -- ponto medio do balde
 DAYS_BEFORE       <- 180               # horizonte original do paper
-COL_PRECO         <- "mid"             # "mid" (mitiga bid-ask bounce) ou "yes_close"
+# FONTE DE PRECO -- decisao medida, nao herdada.
+#
+# Diercks, Katz & Wright (2026, FEDS 2026-010) usam o ULTIMO PRECO NEGOCIADO e
+# advertem contra o ponto medio bid/ask (nota de rodape 4): "midpoints of
+# bid-ask spreads seem to introduce additional issues due to occasionally large
+# spreads on tail outcomes".
+#
+# Esse conselho vale para o pipeline DELES, que e trade-level: la "ultimo
+# negocio" e uma transacao de verdade. No nosso caminho de CANDLESTICKS o
+# yes_close de um dia sem negocios e preco velho, e a medicao mostra que a
+# advertencia se inverte (KXFED-26JUL, tests/audita_contratos.R):
+#
+#              obs   dp da dif   maior salto   curtose    AC(1)
+#   yes_close  153    20,5 bps     127,8 bps      21,4   -0,379
+#   mid        179     5,4 bps      31,2 bps      12,9   -0,115
+#
+# O AC(1) e a evidencia direta: -0,379 no ultimo negocio contra -0,115 no mid e
+# a assinatura do bid-ask bounce, que o ponto medio remove. E o yes_close perde
+# 26 observacoes por precos ausentes.
+#
+# Portanto: quando ha trades (ARQ_TRADES), o pipeline usa o ultimo negocio e
+# segue o paper. Este parametro governa so o fallback por candlesticks, onde
+# `mid` e mensuravelmente melhor.
+COL_PRECO         <- "mid"             # fallback por candlesticks: ver acima
 MIN_OBS           <- 120               # exigencia da lista
 
 # Como colapsar o painel (uma reuniao por vez) em UMA serie:
@@ -92,7 +115,7 @@ if (file.exists(ARQ_TRADES)) {
 } else {
   message("Trades nao encontrados; usando candles: ", ARQ_IN)
   painel <- readr::read_csv(ARQ_IN, show_col_types = FALSE) |>
-    dplyr::mutate(preco = dplyr::coalesce(mid, yes_close) * 100)
+    dplyr::mutate(preco = dplyr::coalesce(.data[[COL_PRECO]], yes_close) * 100)
 }
 
 painel <- painel |>
