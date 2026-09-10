@@ -1,12 +1,25 @@
 # kalshi-fed-arima
 
 Modelagem Box-Jenkins (ARIMA) de uma serie diaria de **mercado de previsao da Kalshi**
-na categoria **Economics** (decisao de juros do Fed / FOMC), como avaliacao parcial de
-**Econometria II — PPGEco/UFES** (Lista 01). O enquadramento e um **teste de eficiencia
-fraca**: sob eficiencia, a expectativa implicita de mercado e um martingale, logo a serie
-deve ser I(1) com variacao ~ ruido branco, e nenhum ARIMA deve bater o *random walk* fora
-da amostra. Alinhado a Diercks, Katz & Wright (2026), *Kalshi and the Rise of Macro
-Markets* (referencia: `jdkatz21/Prediction_Markets_Public`).
+(taxa esperada implicita da FFR), como avaliacao parcial de **Econometria II —
+PPGEco/UFES** (Lista 01).
+
+**Dois artigos, papeis distintos:**
+
+| Artigo | Papel |
+|---|---|
+| **Kagan & Baiocchi (2026)**, *Calibration in Prediction Markets* | **A hipotese.** Precos da Kalshi se comportam como probabilidades genuinas, e cada vez mais perto da resolucao. Em *Economics*, Brier cai quase linearmente de 0,108 (3 meses) para 0,066 (fechamento). |
+| **Diercks, Katz & Wright (2026)**, *Kalshi and the Rise of Macro Markets* | **O metodo.** Como transformar contratos brutos em distribuicao implicita e momentos. E o codigo que o `01_build_series.R` transcreve. |
+
+A justificativa de Kagan & Baiocchi e a Lei dos Grandes Numeros, logo o teste deles e
+**transversal** — junta 2,24 milhoes de mercados. Por construcao, nao diz nada sobre a
+**trajetoria** de um mercado individual. E ai que este trabalho entra: se o preco e uma
+probabilidade bem calibrada que se atualiza com informacao, entao pela lei das
+expectativas iteradas ele e um **martingale**. A serie deve ser I(1), suas diferencas
+ruido branco, e nenhum ARIMA deve superar o passeio aleatorio fora da amostra.
+
+Ver **`docs/alinhamento.md`** para o mapeamento item-a-item da lista e tres previsoes
+concretas sobre os diagnosticos.
 
 ## A serie
 - **Fonte:** API publica da Kalshi (`api.elections.kalshi.com/trade-api/v2`), candlesticks
@@ -14,6 +27,22 @@ Markets* (referencia: `jdkatz21/Prediction_Markets_Public`).
   (series, events e candlesticks sao leitura anonima; chave de API so serve para ordens).
 - **Frequencia:** diaria (a Kalshi existe desde 2021; mensal nao atinge as 120 obs minimas).
 - **Snapshot congelado em:** _AAAA-MM-DD_ (preencher).
+
+### Desvio declarado: frequencia
+A lista pede **"preferencialmente mensal ou trimestral"**. Esta serie e **diaria**, por
+tres razoes que vao declaradas no relatorio:
+
+- a Kalshi opera desde 2021 e seus mercados de FFR desde 2022 — uma serie mensal nao
+  alcanca as **120 observacoes minimas** exigidas;
+- o fenomeno de interesse (atualizacao da expectativa com a chegada de informacao) e
+  intrinsecamente de alta frequencia; agregar para mensal o destruiria;
+- o minimo de 120 observacoes e cumprido com folga: ~180 obs de um unico contrato.
+
+A serie **nao** esta disponivel em pacote de R ou Python, como a lista exige.
+
+Os itens sazonais da lista (Q2c, Q3a, Q3b, Q7e-ii) **nao** sao respondidos com "nao se
+aplica" — isso e ponto perdido. Testa-se **efeito dia-da-semana (s = 5)** e conclui-se
+`D = 0` com evidencia. Ver `docs/alinhamento.md`.
 
 ### Qual serie do Fed? (resolvido)
 A Kalshi tem **duas** familias do Fed, e elas nao sao intercambiaveis:
@@ -44,8 +73,10 @@ run_all.R                reproduz 01..08 sobre o banco congelado
 data/raw/                o "banco" entregue (snapshot da Kalshi) — VERSIONADO
 data/processed/          serie derivada usada na analise
 output/figures, tables/  graficos e tabelas do relatorio
-report/relatorio.qmd     relatorio em PDF (graficos/tabelas integrados)
+report/relatorio.qmd     relatorio em PDF, estruturado nos itens reais da lista
+report/referencias.bib   bibliografia
 docs/metodologia.md      cada decisao rastreada ate o codigo do paper
+docs/alinhamento.md      mapeamento item-a-item da Lista 01 + previsoes
 tests/                   validacao do pipeline contra resposta conhecida
 ```
 
@@ -123,16 +154,23 @@ exatamente os mesmos numeros e graficos. Por isso:
 - **R:** _versao_ (preencher).  **Pacotes:** `renv.lock` + `sessionInfo.txt`.
 
 ## Mapa arquivo -> questao
-| Questao | Arquivo |
-|--------:|---------|
-| 1 | `R/02_inspecao.R` |
-| 2 | `R/03_integracao.R` |
-| 3 | `R/04_identificacao.R` |
-| 4 | `R/05_estimacao.R` |
-| 5 | `R/06_diagnostico.R` |
-| 6 | `R/07_sobrediferenciacao.R` |
-| 7 | `R/08_previsao.R` |
-| 8 | manuscrita (a parte) |
+| Questao | Arquivo | Itens |
+|--------:|---------|-------|
+| 1 | `R/02_inspecao.R` | (a) — a lista tem so este item |
+| 2 | `R/03_integracao.R` | (a) ADF/PP/KPSS · (b) constante e tendencia · (c) `d` e `D` · (d) estocastica vs deterministica |
+| 3 | `R/04_identificacao.R` | (a) FAC/FACP · (b) leitura · (c) tres candidatos |
+| 4 | `R/05_estimacao.R` | (a) tabela unica · (b) amostra efetiva · (c) validade AIC/BIC · (d) convencao de `k` · (e) divergencia · (f) raizes |
+| 5 | `R/06_diagnostico.R` | (a) residuos · (b) Ljung-Box g.l. corrigidos · (c) JB e ARCH-LM · (d) modelos descartados · (e) sobreajuste deliberado |
+| 6 | `R/07_sobrediferenciacao.R` | (a) theta e raiz MA · (b) sigma^2 · (c) FAC · (d) sinais praticos |
+| 7 | `R/08_previsao.R` | (a) H=24 · (b) origem fixa · (c) origem movel sem reestimar · (d) RMSE/MAE/MAPE · (e) RW e sazonal ingenuo · (f) superou? · (g) cobertura |
+| 8 | manuscrita | dois exercicios da lista teorica |
+
+### Exigencias de entrega da lista
+- codigo completo, comentado, **na ordem de execucao** -> `R/00`..`R/08` + `run_all.R`
+- **banco efetivamente utilizado** -> `data/raw/kalshi_fed_panel.csv` (snapshot congelado)
+- **versoes** -> `renv.lock` + `sessionInfo.txt` (gerado pelo `run_all.R`)
+- Q5(d) exige a **lista de modelos descartados** -> `output/tables/modelos_descartados.csv`
+- Q8 e **manuscrita**; digitada nao e aceita
 
 ## Estado atual
 Scaffold, coletor e construcao da serie prontos. Falta:

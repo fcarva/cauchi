@@ -1,5 +1,6 @@
 ---
-title: "Modelagem Box-Jenkins de uma serie de mercado de previsao (Kalshi/Fed)"
+title: "Calibração de um mercado de previsão como hipótese de série temporal"
+subtitle: "Modelagem Box-Jenkins da taxa esperada implícita nos contratos de FFR da Kalshi"
 author: "Felipe Carvalho — PPGEco/UFES, Econometria II"
 date: today
 lang: pt
@@ -7,27 +8,242 @@ format:
   pdf:
     number-sections: true
     fig-pos: "H"
+    toc: true
+bibliography: referencias.bib
 ---
 
-# Preparacao e inspecao preliminar {#sec-q1}
-<!-- Questao 1 -->
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE)
+```
 
-# Ordem de integracao {#sec-q2}
-<!-- Questao 2 -->
+# A série e o enquadramento {.unnumbered}
 
-# Identificacao {#sec-q3}
-<!-- Questao 3 -->
+<!-- DECLARAR AQUI, para a exigencia de comunicacao da serie:
+     Kalshi, familia KXFED (nivel da taxa dos fed funds), reuniao do FOMC de
+     ___. Serie diaria da taxa esperada implicita, obtida da distribuicao de
+     probabilidade construida a partir dos candlesticks diarios pelo metodo de
+     Diercks, Katz & Wright (2026). N = ___ observacoes, de ___ a ___.
+     Snapshot congelado em ___. Nao disponivel em pacote de R ou Python. -->
 
-# Estimacao e selecao {#sec-q4}
-<!-- Questao 4 -->
+**Hipótese.** Kagan & Baiocchi (2026) documentam que os preços da Kalshi se
+comportam como probabilidades genuínas, e crescentemente conforme a resolução se
+aproxima — na categoria *Economics*, o escore de Brier cai de forma quase linear
+de 0,108 (3 meses) para 0,066 (fechamento). A justificativa que eles oferecem é a
+Lei dos Grandes Números, e portanto o teste que executam é **transversal**: junta
+2,24 milhões de mercados resolvidos e compara frequência realizada com preço
+declarado. Por construção, esse desenho nada diz sobre a **trajetória** de um
+mercado individual.
 
-# Diagnostico {#sec-q5}
-<!-- Questao 5 -->
+Se o preço é uma probabilidade bem calibrada que se atualiza com a chegada de
+informação, então pela lei das expectativas iteradas ele é um **martingale**. Este
+trabalho testa essa implicação em série temporal, num único mercado, pelo
+instrumental de Box-Jenkins. As previsões correspondentes são: a série é I(1), suas
+diferenças são ruído branco, e nenhum ARIMA supera o passeio aleatório fora da
+amostra.
 
-# Sobrediferenciacao {#sec-q6}
-<!-- Questao 6 -->
+**Desvio declarado quanto à frequência.** A lista indica preferência por séries
+mensais ou trimestrais. A série aqui é diária, por três razões: a Kalshi opera
+desde 2021 e seus mercados de FFR desde 2022, de modo que uma série mensal não
+alcançaria as 120 observações mínimas; o fenômeno de interesse — atualização da
+expectativa com a chegada de informação — é intrinsecamente de alta frequência, e
+agregar o destruiria; e o mínimo de 120 observações é cumprido com folga
+(N = `r "___"`). A ausência de sazonalidade não é tratada por omissão: o efeito
+dia-da-semana (s = 5) é testado explicitamente nas Questões 2, 3 e 7.
 
-# Previsao fora da amostra {#sec-q7}
-<!-- Questao 7 -->
+{{< pagebreak >}}
 
-<!-- Questao 8 (teorica) e manuscrita e entregue a parte. -->
+# Preparação e inspeção preliminar
+
+## Gráfico da série em nível e descrição {#sec-q1a}
+
+<!-- Q1(a). Descrever OBRIGATORIAMENTE: tendencia; sazonalidade; mudancas de
+     nivel ou de inclinacao; outliers; comportamento da dispersao ao longo do
+     tempo. Este ultimo e o ponto central do trabalho: a dispersao deve ENCOLHER
+     conforme a reuniao se aproxima (Kagan & Baiocchi, Figura 8). -->
+
+```{r q1-nivel}
+#| fig-cap: "Taxa esperada implícita da FFR, diária."
+```
+
+# Ordem de integração
+
+## ADF, PP e KPSS na série em nível {#sec-q2a}
+
+<!-- Q2(a). Para CADA teste reportar: estatistica, valor critico, p-valor,
+     numero de defasagens E o criterio usado para escolhe-lo, termos
+     deterministicos incluidos. Tabela unica. -->
+
+## Constante e tendência na regressão auxiliar {#sec-q2b}
+
+<!-- Q2(b). Justificar explicitamente a inclusao/exclusao de constante e
+     tendencia, e MOSTRAR como a conclusao muda (ou nao) entre especificacoes.
+     Argumento economico: uma taxa esperada nao tem tendencia deterministica --
+     seria expectativa de alta ou baixa perpetua. -->
+
+## Série diferenciada, determinação de d (e D) {#sec-q2c}
+
+<!-- Q2(c). Repetir os testes na diferenca -> d. Avaliar diferenca sazonal com
+     s = 5 (dia da semana) e concluir D = 0 COM EVIDENCIA, nao por omissao. -->
+
+## Tendência estocástica ou determinística {#sec-q2d}
+
+<!-- Q2(d). Se os testes nao decidirem, explicitar a ambiguidade e justificar. -->
+
+# Identificação
+
+## FAC e FACP da série diferenciada {#sec-q3a}
+
+<!-- Q3(a). Bandas de 95%. Defasagens cobrindo >= 2 ciclos sazonais: com s = 5,
+     no minimo 10 lags; usar 20 para folga. -->
+
+## Leitura dos correlogramas {#sec-q3b}
+
+<!-- Q3(b). Truncamento, decaimento exponencial ou amortecido? Picos em 5, 10,
+     15? Vizinhancas 4, 6, 9, 11 sugerindo estrutura multiplicativa?
+     ATENCAO: um pico NEGATIVO no lag 1 pode ser bid-ask bounce (microestrutura),
+     nao informacao. Ver docs/metodologia.md sobre o uso de `mid`. -->
+
+## Três especificações candidatas {#sec-q3c}
+
+<!-- Q3(c). Justificar CADA uma pelo padrao observado. -->
+
+# Estimação e seleção
+
+## Estimação por máxima verossimilhança {#sec-q4a}
+
+<!-- Q4(a). TABELA UNICA: coeficientes, erros-padrao, estatisticas t,
+     sigma^2_a, log-verossimilhanca, AIC, BIC. -->
+
+## Amostra efetiva de cada estimação {#sec-q4b}
+
+## Validade da comparação por AIC/BIC {#sec-q4c}
+
+<!-- Q4(c). Criterios so comparaveis com MESMA variavel dependente e MESMA
+     amostra efetiva. Se um candidato tiver d distinto, a comparacao direta e
+     INVALIDA. Ver docs/alinhamento.md. -->
+
+## Convenção de contagem de parâmetros {#sec-q4d}
+
+<!-- Q4(d). VERIFICADO em R 4.3.3: stats::arima() INCLUI sigma^2_a em k.
+     attr(logLik(fit), "df") = numero de coeficientes + 1.
+     Um ARMA(p,q) com intercepto tem k = p + q + 2. -->
+
+## AIC e BIC selecionam o mesmo modelo? {#sec-q4e}
+
+<!-- Q4(e). Se divergirem: discutir consistencia (BIC) vs eficiencia (AIC) e
+     dizer qual serve ao objetivo. Aqui o objetivo e PREVISAO fora da amostra
+     (Q7), o que favorece o AIC; mas a hipotese nula e parcimoniosa (passeio
+     aleatorio), o que favorece o BIC. Tomar posicao. -->
+
+## Raízes dos polinômios AR e MA {#sec-q4f}
+
+```{r q4-raizes}
+#| fig-cap: "Raízes inversas dos polinômios AR e MA no círculo unitário."
+```
+
+# Diagnóstico
+
+## Resíduos do modelo selecionado {#sec-q5a}
+
+```{r q5-residuos}
+#| fig-cap: "Resíduos contra o tempo, FAC, FACP, histograma e QQ plot."
+```
+
+## Ljung-Box com graus de liberdade corrigidos {#sec-q5b}
+
+<!-- Q5(b). g.l. = m - (p + q). Reportar estatistica, g.l. USADOS e p-valor. -->
+
+## Jarque-Bera e ARCH-LM {#sec-q5c}
+
+<!-- Q5(c). ESTE E O ITEM CENTRAL DO TRABALHO.
+     Espera-se REJEICAO no ARCH-LM: a variancia da variacao diaria encolhe
+     conforme a reuniao se aproxima, porque a incerteza se resolve. Isso e a
+     contraparte em serie temporal da Figura 8 de Kagan & Baiocchi, obtida por
+     metodo inteiramente distinto do deles. Rejeitar homocedasticidade
+     CORROBORA o artigo -- nao e falha do modelo.
+     JB tambem deve rejeitar: caudas de dias de noticia + discretizacao dos
+     precos em cents e dos strikes em 25 bps. -->
+
+## Modelos descartados {#sec-q5d}
+
+<!-- Q5(d). A lista exige a LISTA DE MODELOS DESCARTADOS e o motivo de cada
+     descarte como parte da entrega. Manter o log em output/tables/. -->
+
+## Sobreajuste deliberado {#sec-q5e}
+
+<!-- Q5(e). Estimar duas especificacoes vizinhas: +1 AR e +1 MA. Os coeficientes
+     adicionais sao significativos? O que isso diz sobre a adequacao? -->
+
+# Sobrediferenciação
+
+## Coeficiente MA e raiz do polinômio {#sec-q6a}
+
+<!-- Q6(a). Reestimar com d* + 1. theta_hat aproxima-se de -1? Calcular a raiz. -->
+
+## Variância residual nas duas especificações {#sec-q6b}
+
+## FAC dos resíduos das duas versões {#sec-q6c}
+
+## Sinais práticos de sobrediferenciação {#sec-q6d}
+
+<!-- Q6(d). Que sinais, numa saida de estimacao tipica, permitiriam suspeitar
+     sem conhecer a ordem verdadeira? (raiz MA proxima de 1; erro-padrao do
+     coeficiente MA inflado; sigma^2_a maior que o da especificacao com uma
+     diferenca a menos; FAC dos residuos com lag 1 fortemente negativo.) -->
+
+# Previsão fora da amostra
+
+## Divisão da amostra {#sec-q7a}
+
+<!-- Q7(a). H = 24 ultimas observacoes para validacao. T0 = T - 24. -->
+
+## Esquema 1: origem fixa, múltiplos passos {#sec-q7b}
+
+```{r q7-esquema1}
+#| fig-cap: "Observado, previsão de origem fixa e intervalos de 95%."
+```
+
+## Esquema 2: origem móvel, um passo à frente {#sec-q7c}
+
+<!-- Q7(c). MANTER FIXOS os coeficientes estimados em (b). NAO reestimar. -->
+
+## RMSE, MAE e MAPE {#sec-q7d}
+
+## Comparação com os benchmarks ingênuos {#sec-q7e}
+
+<!-- Q7(e). Passeio aleatorio e sazonal ingenuo (s = 5), sob os DOIS esquemas.
+     TABELA UNICA: esquemas nas colunas, modelos nas linhas. -->
+
+## O modelo superou os benchmarks? {#sec-q7f}
+
+<!-- Q7(f). Se nao superou, NAO alterar o modelo para forcar resultado
+     favoravel. A lista e explicita. E, aqui, nao superar E O RESULTADO:
+     e o que a hipotese de martingale preve. Se possivel, aplicar
+     Diebold-Mariano para dizer se a diferenca e estatisticamente
+     significante -- isso transforma "perdi" em "nao rejeito eficiencia". -->
+
+## Cobertura empírica do intervalo de 95% {#sec-q7g}
+
+<!-- Q7(g). PREVISAO: a cobertura deve EXCEDER 95%. As 24 observacoes reservadas
+     sao os dias imediatamente anteriores a reuniao, o trecho de MENOR variancia
+     da amostra; os intervalos, estimados sobre um periodo de variancia maior,
+     ficam largos demais. E a mesma heterocedasticidade da Q5(c) vista pelo lado
+     da previsao. -->
+
+# Conclusão {.unnumbered}
+
+<!-- Amarrar: o que os diagnosticos disseram sobre a hipotese de martingale, e
+     portanto sobre a calibracao documentada por Kagan & Baiocchi por um caminho
+     que o metodo transversal deles nao alcanca. -->
+
+# Reprodutibilidade {.unnumbered}
+
+<!-- Exigencia da lista. Apontar para: codigo comentado na ordem de execucao
+     (R/00 a R/08 + run_all.R), banco efetivamente utilizado
+     (data/raw/kalshi_fed_panel.csv, snapshot congelado), versoes
+     (renv.lock + sessionInfo.txt). Mencionar tests/ como verificacao
+     independente do pipeline de construcao da serie. -->
+
+```{r sessao}
+#| output: asis
+```
