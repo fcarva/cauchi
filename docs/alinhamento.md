@@ -474,3 +474,103 @@ Cobertura do IC de 95%: **100%**, exatamente como previsto neste documento.
 - Q2(d): não abordada.
 - Q4(d): convenção de contagem de `k` não documentada na saída (resposta: o R inclui σ̂²ₐ).
 - Q4(e): `q4_selecao.csv` reporta só o AIC, escondendo a divergência.
+
+---
+
+# Questão 7 completa: Diebold-Mariano e PIT
+
+Implementados em `R/08_previsao.R`, com a casa de estilo de `R/99_viz.R`.
+
+## Q7(f) — Diebold-Mariano
+
+| Comparação (esquema 2, h=1) | DM quadrático | p | DM absoluto | p |
+|---|---:|---:|---:|---:|
+| ARIMA(3,1,3) vs passeio aleatório | +0,278 | 0,783 | **+2,129** | **0,044** |
+| ARIMA(3,1,3) vs sazonal ingênuo | **−3,361** | **0,003** | **−3,452** | **0,002** |
+
+Sinal negativo = ARIMA com perda menor.
+
+**Leitura.** Sob perda quadrática o teste **não rejeita** acurácia igual contra o
+passeio aleatório (p = 0,78) — que é exatamente o que a hipótese de martingale
+prevê. Sob perda absoluta o passeio aleatório é **significativamente melhor**
+(p = 0,044). Contra o sazonal ingênuo o ARIMA vence com folga nos dois critérios,
+o que confirma que não há sazonalidade semanal a explorar.
+
+Escreva assim: *"não rejeito a hipótese de acurácia preditiva igual à do passeio
+aleatório"* — inferência, não a observação frouxa de "meu modelo perdeu".
+
+### Por que o Esquema 1 não recebe DM
+
+O DM compara sequências de erros de **origens repetidas**. O Esquema 1 tem **uma
+única origem**: seus 24 erros são um caminho só. Além disso, com `h = n` a correção
+de Harvey, Leybourne e Newbold,
+
+```
+sqrt((n + 1 − 2h + h(h−1)/n)/n)  com n = h = 24  →  (25 − 48 + 23)/24 = 0
+```
+
+**zera exatamente**, e a variância de longo prazo de Newey-West com 23 defasagens
+sobre 24 observações deixa de ser positiva. O script reporta "não aplicável" com a
+justificativa em vez de imprimir um número degenerado. Isso é resposta, não lacuna.
+
+## Q7(g) — cobertura e PIT
+
+| Diagnóstico | Esquema 1 | Esquema 2 |
+|---|---:|---:|
+| Cobertura do IC 95% | **100,0%** | — |
+| KS da PIT contra U(0,1): D | 0,402 | 0,323 |
+| p-valor | **0,0005** | **0,0101** |
+
+**Ambos rejeitam uniformidade.** O histograma de PIT (Figura 2) mostra uma
+**corcova no centro**: quase toda a massa entre 0,3 e 0,7, caudas vazias. Essa é a
+assinatura de densidades preditivas **superdispersas** — largas demais.
+
+Isso confirma formalmente o que a cobertura de 100% já sugeria, e fecha o argumento
+da Q5(c): os intervalos foram estimados sobre um período de variância alta e
+aplicados a uma janela de validação de variância baixa. Não é falha do estimador; é
+a heterocedasticidade da série vista pelo lado da densidade preditiva.
+
+A cobertura é uma versão **fraca** do teste de PIT — ela olha só um quantil. O
+arcabouço de Diebold, Gunther e Tay (1998) olha a distribuição inteira, e é o que os
+próprios autores do FEDS aplicam na seção 6.1.
+
+---
+
+# Casa de estilo: `R/99_viz.R`
+
+Rigor do Federal Reserve Board na apresentação, convenção brasileira na notação.
+
+**Figuras.** `theme_feds()` reproduz o padrão do próprio código do Fed Board: em
+`code/utilities.R` do replication package, as figuras usam moldura fechada e marcas
+de escala **voltadas para dentro** (`par(tck = -0.02)`). Grade recessiva, sem enfeite.
+
+**Notação.** Vírgula decimal e ponto de milhar (`fmt_br()`), rótulos em português,
+legendas "Figura N — título" com bloco "Fonte:" obrigatório identificando o snapshot
+congelado.
+
+**Tabelas.** `tabela_coef()` entrega o padrão acadêmico: coeficiente com estrelas,
+erro-padrão entre parênteses, estatística t e p-valor, tudo com vírgula decimal.
+`nota_tabela()` gera a nota de rodapé.
+
+**Paleta.** Validada pelo *six-checks* (superfície `#fcfcfb`, modo claro, pares
+"all"):
+
+| Verificação | Resultado |
+|---|---|
+| Faixa de luminosidade | PASSA (3 dentro de L 0,43–0,77) |
+| Piso de croma | PASSA (3 ≥ 0,1) |
+| Separação CVD | PASSA — pior par `#1baf7a`↔`#c0392b`, ΔE **12,8** (deuteranopia) |
+| Piso de visão normal | PASSA — pior par ΔE **24,0** |
+| Contraste vs. fundo | **ALERTA**: `#1baf7a` = 2,74 (< 3:1) |
+
+O primeiro candidato, azul-marinho `#1b4b72` no espírito do FRB, **reprovou** em duas
+checagens (fora da faixa de luminosidade, abaixo do piso de croma — lê como cinza).
+Foi substituído por `#2a78d6`. A paleta final `#2a78d6 / #c0392b / #1baf7a` passa
+tudo e tem separação CVD **melhor** que o padrão de referência (12,8 contra 9,2).
+
+O alerta de contraste obriga **relevo**: a série aqua nunca aparece sozinha na cor —
+há legenda, tipo de linha distinto e a tabela de métricas. Identidade nunca fica só
+na cor: cada série tem cor **e** tipo de linha.
+
+**Modo único.** O destino é PDF impresso, então a paleta é calibrada só para fundo
+claro. É escolha declarada, não omissão.
